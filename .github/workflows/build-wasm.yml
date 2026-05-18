@@ -6,6 +6,7 @@ on:
     paths:
       - 'crates/**'
       - 'npm/**'
+      - 'site/**'
       - 'wrappers/blazor/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
@@ -60,7 +61,7 @@ jobs:
           sudo apt-get install -y binaryen
           wasm-opt --version
 
-      - name: Optimise WASM with full proposal support
+      - name: Optimise WASM
         run: |
           wasm-opt npm/wasm/mid_qr_wasm_bg.wasm \
             -Oz \
@@ -71,13 +72,13 @@ jobs:
             -o npm/wasm/mid_qr_wasm_bg.wasm
           echo "wasm-opt done ($(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1))"
 
-      - name: Verify WASM artefacts exist
+      - name: Verify WASM artefacts
         run: |
-          for f in npm/wasm/mid_qr_wasm_bg.wasm npm/wasm/mid_qr_wasm.js npm/wasm/mid_qr_wasm.d.ts; do
-            if [ ! -f "$f" ]; then
-              echo "::error::Missing expected WASM artefact: $f"
-              exit 1
-            fi
+          for f in \
+            npm/wasm/mid_qr_wasm_bg.wasm \
+            npm/wasm/mid_qr_wasm.js \
+            npm/wasm/mid_qr_wasm.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
             echo "OK $f ($(du -sh "$f" | cut -f1))"
           done
 
@@ -87,31 +88,43 @@ jobs:
           cp npm/wasm/mid_qr_wasm_bg.wasm  wrappers/blazor/wwwroot/wasm/
           cp npm/wasm/mid_qr_wasm.js       wrappers/blazor/wwwroot/wasm/
           cp npm/wasm/mid_qr_wasm.d.ts     wrappers/blazor/wwwroot/wasm/
-          echo "WASM copied to Blazor wwwroot"
 
       - name: Fetch nimiq scanner files
         run: |
           NIMIQ_BASE="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
           mkdir -p npm/src/worker
-          for f in qr-scanner.min.js qr-scanner-worker.min.js qr-scanner.umd.min.js; do
+          for f in \
+            qr-scanner.min.js \
+            qr-scanner-worker.min.js \
+            qr-scanner.umd.min.js; do
             TARGET="npm/src/worker/$f"
             if [ ! -f "$TARGET" ]; then
               curl -fsSL "$NIMIQ_BASE/$f" -o "$TARGET"
               echo "fetched $TARGET"
             else
-              echo "exists: $TARGET"
+              echo "exists $TARGET"
             fi
           done
+          # Copy to Blazor wwwroot
           mkdir -p wrappers/blazor/wwwroot/js/worker
-          for f in qr-scanner.min.js qr-scanner-worker.min.js qr-scanner.umd.min.js; do
+          for f in \
+            qr-scanner.min.js \
+            qr-scanner-worker.min.js \
+            qr-scanner.umd.min.js; do
             cp "npm/src/worker/$f" "wrappers/blazor/wwwroot/js/worker/$f"
-            echo "copied to blazor wwwroot: $f"
           done
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+
+      - name: Cache npm modules
+        uses: actions/cache@v4
+        with:
+          path: npm/node_modules
+          key: npm-${{ hashFiles('npm/package-lock.json') }}
+          restore-keys: npm-
 
       - name: Install npm dependencies
         working-directory: npm
@@ -124,26 +137,52 @@ jobs:
       - name: Verify TS build output
         run: |
           for f in npm/dist/index.js npm/dist/index.d.ts; do
-            if [ ! -f "$f" ]; then
-              echo "::error::Missing expected TS artefact: $f"
-              exit 1
-            fi
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
             echo "OK $f"
           done
 
       - name: Assemble dist directory
         run: |
           rm -rf dist-out
-          mkdir -p dist-out/npm/worker dist-out/blazor dist-out/test
+          mkdir -p dist-out/npm/worker \
+                   dist-out/blazor/wasm \
+                   dist-out/blazor/js/worker \
+                   dist-out/site/css \
+                   dist-out/site/js/worker \
+                   dist-out/site/wasm \
+                   dist-out/test
+
+          # ── npm package ────────────────────────────────────────────
           cp -r npm/dist         dist-out/npm/dist
           cp -r npm/wasm         dist-out/npm/wasm
           cp    npm/package.json dist-out/npm/
-          cp npm/src/worker/qr-scanner.min.js          dist-out/npm/worker/
-          cp npm/src/worker/qr-scanner-worker.min.js   dist-out/npm/worker/
-          cp npm/src/worker/qr-scanner.umd.min.js      dist-out/npm/worker/
+          cp npm/src/worker/qr-scanner.min.js        dist-out/npm/worker/
+          cp npm/src/worker/qr-scanner-worker.min.js dist-out/npm/worker/
+          cp npm/src/worker/qr-scanner.umd.min.js    dist-out/npm/worker/
+
+          # ── Blazor wrapper ─────────────────────────────────────────
           cp -r wrappers/blazor/wwwroot/wasm dist-out/blazor/wasm
           cp -r wrappers/blazor/wwwroot/js   dist-out/blazor/js
+
+          # ── Website snapshot (matches pages.yml structure) ─────────
+          cp site/index.html dist-out/site/index.html
+          touch dist-out/site/.nojekyll
+          for sheet in variables reset layout components panels responsive; do
+            cp "site/css/${sheet}.css" "dist-out/site/css/${sheet}.css"
+          done
+          for mod in app qr-engine controls preview download; do
+            cp "site/js/${mod}.js" "dist-out/site/js/${mod}.js"
+          done
+          cp npm/dist/index.js           dist-out/site/js/mid-qr.js
+          cp npm/wasm/mid_qr_wasm_bg.wasm dist-out/site/wasm/
+          cp npm/wasm/mid_qr_wasm.js      dist-out/site/wasm/
+          cp npm/src/worker/qr-scanner.umd.min.js      dist-out/site/js/worker/
+          cp npm/src/worker/qr-scanner-worker.min.js   dist-out/site/js/worker/
+          cp npm/src/worker/qr-scanner.min.js          dist-out/site/js/worker/
+
+          # ── Legacy test app ────────────────────────────────────────
           cp -r test/. dist-out/test/
+
           echo "dist tree assembled"
           find dist-out -type f | sort
 
@@ -152,15 +191,20 @@ jobs:
           cat > dist-out/README.md << 'DISTEOF'
           # mid-qr dist branch
 
-          Built artefacts. Do not edit manually.
-          Source is on the main branch.
+          Built artefacts — do not edit manually. Source is on main.
 
-          Install via npm:
-            npm install github:Mid-D-Man/mid-qr#dist
+          ## npm install from GitHub dist branch
+```bash
+          npm install github:Mid-D-Man/mid-qr#dist
+```
 
-          Blazor:
-            Copy blazor/wasm/ to wwwroot/wasm/
-            Copy blazor/js/   to wwwroot/js/
+          ## Blazor
+          Copy `blazor/wasm/` → `wwwroot/wasm/`
+          Copy `blazor/js/`   → `wwwroot/js/`
+
+          ## Website snapshot
+          The `site/` directory contains a pre-assembled version of the
+          website matching the gh-pages deployment.
           DISTEOF
 
       - name: Push dist branch
