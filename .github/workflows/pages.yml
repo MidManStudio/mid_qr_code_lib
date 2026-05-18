@@ -1,25 +1,34 @@
-name: Deploy test app to GitHub Pages
+name: Build & deploy site → GitHub Pages
 
+# ─────────────────────────────────────────────────────────────────────
+# Triggers
+# ─────────────────────────────────────────────────────────────────────
 on:
   push:
     branches: [ main, master ]
     paths:
-      - 'test/**'
-      - 'crates/**'
-      - 'npm/**'
-      - 'wrappers/blazor/**'
-  workflow_dispatch:
+      - 'site/**'          # website source
+      - 'crates/**'        # Rust core / WASM
+      - 'npm/**'           # TypeScript library
+  workflow_dispatch:       # manual trigger from Actions tab
 
+# ─────────────────────────────────────────────────────────────────────
+# Job
+# ─────────────────────────────────────────────────────────────────────
 jobs:
-  deploy:
+  build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write
+      contents: write       # needed to push gh-pages branch
 
     steps:
-      - uses: actions/checkout@v4
 
-      - name: Install Rust stable
+      # ── 1. Source ────────────────────────────────────────────────────
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      # ── 2. Rust / WASM ───────────────────────────────────────────────
+      - name: Install Rust stable (wasm32 target)
         uses: dtolnay/rust-toolchain@stable
         with:
           targets: wasm32-unknown-unknown
@@ -42,12 +51,13 @@ jobs:
             --out-dir ../../npm/wasm \
             --out-name mid_qr_wasm
 
+      # ── 3. Optimise WASM ─────────────────────────────────────────────
       - name: Install binaryen (wasm-opt)
         run: |
           sudo apt-get install -y binaryen
           wasm-opt --version
 
-      - name: Optimise WASM with full proposal support
+      - name: Optimise WASM binary
         run: |
           wasm-opt npm/wasm/mid_qr_wasm_bg.wasm \
             -Oz \
@@ -56,133 +66,129 @@ jobs:
             --enable-sign-ext \
             --enable-mutable-globals \
             -o npm/wasm/mid_qr_wasm_bg.wasm
-          echo "wasm-opt done ($(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1))"
+          echo "wasm-opt done — $(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1)"
 
       - name: Verify WASM artefacts
         run: |
-          for f in npm/wasm/mid_qr_wasm_bg.wasm npm/wasm/mid_qr_wasm.js npm/wasm/mid_qr_wasm.d.ts; do
-            if [ ! -f "$f" ]; then
-              echo "::error::Missing: $f"
-              exit 1
-            fi
-            echo "OK $f ($(du -sh "$f" | cut -f1))"
+          for f in \
+            npm/wasm/mid_qr_wasm_bg.wasm \
+            npm/wasm/mid_qr_wasm.js \
+            npm/wasm/mid_qr_wasm.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            echo "OK  $f  ($(du -sh "$f" | cut -f1))"
           done
 
-      - name: Fetch nimiq scanner files
+      # ── 4. Nimiq scanner ─────────────────────────────────────────────
+      - name: Fetch nimiq QR scanner files
         run: |
-          NIMIQ="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
+          BASE="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
           mkdir -p npm/src/worker
-          for f in qr-scanner.min.js qr-scanner-worker.min.js qr-scanner.umd.min.js; do
-            curl -fsSL "$NIMIQ/$f" -o "npm/src/worker/$f"
-            echo "fetched $f"
+          for f in \
+            qr-scanner.min.js \
+            qr-scanner-worker.min.js \
+            qr-scanner.umd.min.js; do
+            curl -fsSL "$BASE/$f" -o "npm/src/worker/$f"
+            echo "OK  npm/src/worker/$f"
           done
 
-      - name: Setup Node.js
+      # ── 5. TypeScript / npm ──────────────────────────────────────────
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Install and build TypeScript
-        working-directory: npm
-        run: |
-          npm install
-          npm run build:ts
+      - name: Cache npm modules
+        uses: actions/cache@v4
+        with:
+          path: npm/node_modules
+          key: npm-${{ hashFiles('npm/package-lock.json') }}
+          restore-keys: npm-
 
-      - name: Verify TS build output
+      - name: Install npm dependencies
+        working-directory: npm
+        run: npm install
+
+      - name: Build TypeScript (tsc + rollup)
+        working-directory: npm
+        run: npm run build:ts
+
+      - name: Verify TS artefacts
         run: |
           for f in npm/dist/index.js npm/dist/index.d.ts; do
-            if [ ! -f "$f" ]; then
-              echo "::error::Missing: $f"
-              exit 1
-            fi
-            echo "OK $f"
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            echo "OK  $f"
           done
 
-      - name: Ensure test/index.html exists
-        run: |
-          mkdir -p test
-          if [ ! -f "test/index.html" ]; then
-            echo "test/index.html not found — writing placeholder"
-            cat > test/index.html << 'HTMLEOF'
-          <!DOCTYPE html>
-          <html lang="en">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>mid-qr test</title>
-            <style>
-              body { font-family: system-ui, sans-serif; background: #0f172a; color: #f1f5f9;
-                     display: flex; flex-direction: column; align-items: center;
-                     justify-content: center; min-height: 100vh; margin: 0; gap: 16px; }
-              h1 { color: #38bdf8; }
-              p  { color: #94a3b8; }
-              #qr { min-height: 120px; min-width: 120px; background: #1e293b;
-                    border-radius: 8px; display: flex; align-items: center;
-                    justify-content: center; padding: 12px; }
-              .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.75rem;
-                       font-weight: 600; background: #1e293b; color: #94a3b8; }
-              .ok  { background: rgba(74,222,128,.15); color: #4ade80; }
-              .err { background: rgba(248,113,113,.15); color: #f87171; }
-            </style>
-          </head>
-          <body>
-            <h1>mid-qr <span class="badge" id="badge">loading...</span></h1>
-            <p>Commit test/index.html from the repo source for the full test app.</p>
-            <div id="qr"><span style="color:#475569">QR appears here</span></div>
-            <script type="module">
-              const wasmUrl = new URL('./wasm/mid_qr_wasm_bg.wasm', location.href);
-              try {
-                const { MidQr } = await import('./js/mid-qr.js');
-                const qr  = await MidQr.create(wasmUrl);
-                const svg = qr.generate({ data: location.href, size: 240 });
-                document.getElementById('qr').innerHTML = svg;
-                const b = document.getElementById('badge');
-                b.textContent = 'v' + qr.version;
-                b.className = 'badge ok';
-              } catch (e) {
-                const b = document.getElementById('badge');
-                b.textContent = 'error';
-                b.className = 'badge err';
-                console.error(e);
-              }
-            </script>
-          </body>
-          </html>
-          HTMLEOF
-            echo "placeholder written"
-          else
-            echo "test/index.html exists"
-          fi
-
+      # ── 6. Assemble site ─────────────────────────────────────────────
       - name: Assemble GitHub Pages output
         run: |
-          rm -rf gh-pages-out
-          mkdir -p gh-pages-out/wasm gh-pages-out/js/worker
-          cp test/index.html                           gh-pages-out/index.html
-          cp npm/wasm/mid_qr_wasm_bg.wasm             gh-pages-out/wasm/
-          cp npm/wasm/mid_qr_wasm.js                  gh-pages-out/wasm/
-          cp npm/dist/index.js                         gh-pages-out/js/mid-qr.js
-          cp npm/src/worker/qr-scanner.min.js          gh-pages-out/js/worker/
-          cp npm/src/worker/qr-scanner-worker.min.js   gh-pages-out/js/worker/
-          cp npm/src/worker/qr-scanner.umd.min.js      gh-pages-out/js/worker/
-          touch gh-pages-out/.nojekyll
-          echo "Pages tree:"
-          find gh-pages-out -type f | sort
+          rm -rf _site
+          mkdir -p _site/css \
+                   _site/js/worker \
+                   _site/wasm
 
-      - name: Deploy to gh-pages branch
+          # Root files
+          cp site/index.html _site/index.html
+          touch _site/.nojekyll
+
+          # Stylesheets
+          for sheet in variables reset layout components panels responsive; do
+            cp "site/css/${sheet}.css" "_site/css/${sheet}.css"
+          done
+
+          # Site JS modules (native ES modules — no bundling required)
+          for mod in app qr-engine controls preview download; do
+            cp "site/js/${mod}.js" "_site/js/${mod}.js"
+          done
+
+          # Compiled library  →  exposed as js/mid-qr.js
+          # (path matches the dynamic import in qr-engine.js)
+          cp npm/dist/index.js _site/js/mid-qr.js
+
+          # WASM binary + JS glue
+          # js/mid-qr.js dynamically imports ../wasm/mid_qr_wasm.js at runtime
+          cp npm/wasm/mid_qr_wasm_bg.wasm  _site/wasm/
+          cp npm/wasm/mid_qr_wasm.js       _site/wasm/
+
+          # Nimiq scanner
+          # UMD  →  loaded via <script> tag, sets window.QrScanner
+          # Worker  →  loaded by the UMD scanner for camera decode
+          cp npm/src/worker/qr-scanner.umd.min.js      _site/js/worker/
+          cp npm/src/worker/qr-scanner-worker.min.js   _site/js/worker/
+          cp npm/src/worker/qr-scanner.min.js          _site/js/worker/
+
+          echo ""
+          echo "── Deployed file tree ────────────────────────────────"
+          find _site -type f | sort
+          echo "──────────────────────────────────────────────────────"
+          echo "Total: $(du -sh _site | cut -f1)"
+
+      # ── 7. Deploy ────────────────────────────────────────────────────
+      - name: Push to gh-pages branch
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Fetch existing gh-pages if it exists (for --staged diff check)
           git fetch origin gh-pages 2>/dev/null || true
+
+          # Create a throwaway orphan branch, wipe the tree, add site files
           git checkout --orphan gh-pages-tmp
           git rm -rf . --quiet 2>/dev/null || true
-          cp -r gh-pages-out/. .
-          rm -rf gh-pages-out
+
+          cp -r _site/. .
+          rm -rf _site
+
           git add .
+
           if git diff --staged --quiet; then
-            echo "nothing changed"
+            echo "Nothing changed — skipping deploy."
             exit 0
           fi
-          git commit -m "deploy: gh-pages $(date -u '+%Y-%m-%dT%H:%M:%SZ') [skip ci]"
+
+          git commit -m "deploy: $(date -u '+%Y-%m-%dT%H:%M:%SZ') [skip ci]"
           git push origin HEAD:gh-pages --force
-          echo "deployed to gh-pages"
+
+          echo ""
+          echo "Site deployed to gh-pages branch."
+          echo "Live at: https://$(echo $GITHUB_REPOSITORY | cut -d/ -f1).github.io/$(echo $GITHUB_REPOSITORY | cut -d/ -f2)/"
