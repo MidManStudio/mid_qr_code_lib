@@ -194,9 +194,9 @@ jobs:
           Built artefacts — do not edit manually. Source is on main.
 
           ## npm install from GitHub dist branch
-```bash
+          ```bash
           npm install github:Mid-D-Man/mid-qr#dist
-```
+          ```
 
           ## Blazor
           Copy `blazor/wasm/` → `wwwroot/wasm/`
