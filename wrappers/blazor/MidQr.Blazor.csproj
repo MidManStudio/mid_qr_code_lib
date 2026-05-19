@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk.Razor">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12</LangVersion>
+    <RootNamespace>MidQr.Blazor</RootNamespace>
+    <AssemblyName>MidQr.Blazor</AssemblyName>
+
+    <!-- ── NuGet package identity ────────────────────────────────────── -->
+    <PackageId>MidManStudio.MidQr.Blazor</PackageId>
+    <Version>0.1.0</Version>
+    <Authors>MidManStudio</Authors>
+    <Company>MidManStudio</Company>
+    <Product>mid-qr Blazor</Product>
+    <Copyright>Copyright © 2025 MidManStudio</Copyright>
+
+    <!-- ── NuGet package metadata ────────────────────────────────────── -->
+    <Description>
+      Blazor component library for mid-qr — free QR code generation and
+      real-time camera scanning powered by a Rust/WebAssembly core.
+      Provides MidQrCode (SVG generator with gradients, logos, frames,
+      custom dot styles) and MidQrScanner (camera feed with locked-payload
+      support).
+    </Description>
+    <PackageTags>qr;qrcode;blazor;blazor-webassembly;blazor-server;wasm;scanner;generator;mid-qr;midmanstudio</PackageTags>
+    <PackageProjectUrl>https://github.com/MidManStudio/mid-qr</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MidManStudio/mid-qr</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+
+    <!-- ── Build options ─────────────────────────────────────────────── -->
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+  </PropertyGroup>
+
+  <!-- ── Package dependencies ──────────────────────────────────────────── -->
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.0" />
+  </ItemGroup>
+
+  <!-- ── Files packed into the NuGet ──────────────────────────────────── -->
+  <ItemGroup>
+    <!-- Root README becomes the NuGet package readme -->
+    <None Include="../../README.md" Pack="true" PackagePath="\"/>
+  </ItemGroup>
+
+  <!--
+    Static web assets in wwwroot/ are automatically served by Blazor at
+      _content/MidManStudio.MidQr.Blazor/...
+
+    Required files (copied by CI before pack):
+      wwwroot/wasm/mid_qr_wasm_bg.wasm
+      wwwroot/wasm/mid_qr_wasm.js
+      wwwroot/js/midQrModule.js
+      wwwroot/js/worker/qr-scanner.umd.min.js
+      wwwroot/js/worker/qr-scanner-worker.min.js
+      wwwroot/js/worker/qr-scanner.min.js
+  -->
+
+</Project>
