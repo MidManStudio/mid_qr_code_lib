@@ -1,33 +1,24 @@
 name: Build & deploy site → GitHub Pages
 
-# ─────────────────────────────────────────────────────────────────────
-# Triggers
-# ─────────────────────────────────────────────────────────────────────
 on:
   push:
     branches: [ main, master ]
     paths:
-      - 'site/**'          # website source
-      - 'crates/**'        # Rust core / WASM
-      - 'npm/**'           # TypeScript library
-  workflow_dispatch:       # manual trigger from Actions tab
+      - 'site/**'
+      - 'crates/**'
+      - 'npm/**'
+  workflow_dispatch:
 
-# ─────────────────────────────────────────────────────────────────────
-# Job
-# ─────────────────────────────────────────────────────────────────────
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     permissions:
-      contents: write       # needed to push gh-pages branch
+      contents: write
 
     steps:
-
-      # ── 1. Source ────────────────────────────────────────────────────
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
 
-      # ── 2. Rust / WASM ───────────────────────────────────────────────
       - name: Install Rust stable (wasm32 target)
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -51,14 +42,9 @@ jobs:
             --out-dir ../../npm/wasm \
             --out-name mid_qr_wasm
 
-      # ── 3. Optimise WASM ─────────────────────────────────────────────
-      - name: Install binaryen (wasm-opt)
+      - name: Install binaryen & optimise WASM
         run: |
           sudo apt-get install -y binaryen
-          wasm-opt --version
-
-      - name: Optimise WASM binary
-        run: |
           wasm-opt npm/wasm/mid_qr_wasm_bg.wasm \
             -Oz \
             --enable-bulk-memory \
@@ -66,32 +52,24 @@ jobs:
             --enable-sign-ext \
             --enable-mutable-globals \
             -o npm/wasm/mid_qr_wasm_bg.wasm
-          echo "wasm-opt done — $(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1)"
+          echo "Optimised: $(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1)"
 
       - name: Verify WASM artefacts
         run: |
-          for f in \
-            npm/wasm/mid_qr_wasm_bg.wasm \
-            npm/wasm/mid_qr_wasm.js \
-            npm/wasm/mid_qr_wasm.d.ts; do
-            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+          for f in npm/wasm/mid_qr_wasm_bg.wasm npm/wasm/mid_qr_wasm.js npm/wasm/mid_qr_wasm.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing $f"; exit 1; }
             echo "OK  $f  ($(du -sh "$f" | cut -f1))"
           done
 
-      # ── 4. Nimiq scanner ─────────────────────────────────────────────
-      - name: Fetch nimiq QR scanner files
+      - name: Fetch nimiq scanner files
         run: |
           BASE="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
           mkdir -p npm/src/worker
-          for f in \
-            qr-scanner.min.js \
-            qr-scanner-worker.min.js \
-            qr-scanner.umd.min.js; do
+          for f in qr-scanner.min.js qr-scanner-worker.min.js qr-scanner.umd.min.js; do
             curl -fsSL "$BASE/$f" -o "npm/src/worker/$f"
             echo "OK  npm/src/worker/$f"
           done
 
-      # ── 5. TypeScript / npm ──────────────────────────────────────────
       - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
@@ -104,91 +82,75 @@ jobs:
           key: npm-${{ hashFiles('npm/package-lock.json') }}
           restore-keys: npm-
 
-      - name: Install npm dependencies
+      - name: Install & build TypeScript
         working-directory: npm
-        run: npm install
-
-      - name: Build TypeScript (tsc + rollup)
-        working-directory: npm
-        run: npm run build:ts
+        run: |
+          npm install
+          npm run build:ts
 
       - name: Verify TS artefacts
         run: |
           for f in npm/dist/index.js npm/dist/index.d.ts; do
-            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            [ -f "$f" ] || { echo "::error::Missing $f"; exit 1; }
             echo "OK  $f"
           done
 
-      # ── 6. Assemble site ─────────────────────────────────────────────
-      - name: Assemble GitHub Pages output
+      - name: Assemble site
         run: |
           rm -rf _site
           mkdir -p _site/css \
                    _site/js/worker \
                    _site/wasm
 
-          # Root files
-          cp site/index.html _site/index.html
+          # ── Root ──────────────────────────────────────────────────────
+          cp site/index.html   _site/index.html
+          cp site/scanner.html _site/scanner.html   # <── scanner page
           touch _site/.nojekyll
 
-          # Stylesheets
+          # ── Stylesheets ───────────────────────────────────────────────
           for sheet in variables reset layout components panels responsive; do
             cp "site/css/${sheet}.css" "_site/css/${sheet}.css"
           done
 
-          # Site JS modules (native ES modules — no bundling required)
+          # ── Site JS modules ───────────────────────────────────────────
           for mod in app qr-engine controls preview download; do
             cp "site/js/${mod}.js" "_site/js/${mod}.js"
           done
+          cp site/js/scanner-page.js _site/js/scanner-page.js  # <── scanner JS
 
-          # Compiled library  →  exposed as js/mid-qr.js
-          # (path matches the dynamic import in qr-engine.js)
+          # ── Library (compiled npm → mid-qr.js) ───────────────────────
           cp npm/dist/index.js _site/js/mid-qr.js
 
-          # WASM binary + JS glue
-          # js/mid-qr.js dynamically imports ../wasm/mid_qr_wasm.js at runtime
+          # ── WASM binary + glue ────────────────────────────────────────
           cp npm/wasm/mid_qr_wasm_bg.wasm  _site/wasm/
           cp npm/wasm/mid_qr_wasm.js       _site/wasm/
 
-          # Nimiq scanner
-          # UMD  →  loaded via <script> tag, sets window.QrScanner
-          # Worker  →  loaded by the UMD scanner for camera decode
+          # ── Nimiq camera scanner ─────────────────────────────────────
           cp npm/src/worker/qr-scanner.umd.min.js      _site/js/worker/
           cp npm/src/worker/qr-scanner-worker.min.js   _site/js/worker/
           cp npm/src/worker/qr-scanner.min.js          _site/js/worker/
 
           echo ""
-          echo "── Deployed file tree ────────────────────────────────"
+          echo "── Deployed tree ─────────────────────────────────────────"
           find _site -type f | sort
-          echo "──────────────────────────────────────────────────────"
+          echo "──────────────────────────────────────────────────────────"
           echo "Total: $(du -sh _site | cut -f1)"
 
-      # ── 7. Deploy ────────────────────────────────────────────────────
-      - name: Push to gh-pages branch
+      - name: Deploy to gh-pages
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          # Fetch existing gh-pages if it exists (for --staged diff check)
           git fetch origin gh-pages 2>/dev/null || true
-
-          # Create a throwaway orphan branch, wipe the tree, add site files
           git checkout --orphan gh-pages-tmp
           git rm -rf . --quiet 2>/dev/null || true
-
           cp -r _site/. .
           rm -rf _site
-
           git add .
-
           if git diff --staged --quiet; then
             echo "Nothing changed — skipping deploy."
             exit 0
           fi
-
           git commit -m "deploy: $(date -u '+%Y-%m-%dT%H:%M:%SZ') [skip ci]"
           git push origin HEAD:gh-pages --force
-
           echo ""
-          echo "Site deployed to gh-pages branch."
           echo "Live at: https://$(echo $GITHUB_REPOSITORY | cut -d/ -f1).github.io/$(echo $GITHUB_REPOSITORY | cut -d/ -f2)/"
