@@ -1,0 +1,175 @@
+name: Publish Blazor package → NuGet
+
+# ─────────────────────────────────────────────────────────────────────
+# Tag format:  nuget-v0.1.0   (separate from npm tags)
+# Secrets:     NUGET_API_KEY  (set in repo Settings → Secrets)
+# ─────────────────────────────────────────────────────────────────────
+on:
+  push:
+    tags:
+      - 'nuget-v[0-9]*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Package version (e.g. 0.1.0)'
+        required: true
+        default: '0.1.0'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+
+      # ── 1. Source ────────────────────────────────────────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # ── 2. Resolve version ───────────────────────────────────────────
+      - name: Resolve package version
+        id: ver
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            VERSION="${GITHUB_REF_NAME#nuget-v}"
+          else
+            VERSION="${{ inputs.version }}"
+          fi
+          # Validate semver-ish format
+          if ! echo "$VERSION" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+            echo "::error::Version '$VERSION' does not look like a semver (e.g. 0.1.0)"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Publishing NuGet package version: $VERSION"
+
+      # ── 3. Rust / WASM ───────────────────────────────────────────────
+      - name: Install Rust stable (wasm32 target)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        run: |
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Build WASM (release)
+        run: |
+          wasm-pack build crates/mid-qr-wasm \
+            --target web \
+            --release \
+            --out-dir ../../npm/wasm \
+            --out-name mid_qr_wasm
+
+      - name: Install binaryen & optimise
+        run: |
+          sudo apt-get install -y binaryen
+          wasm-opt npm/wasm/mid_qr_wasm_bg.wasm \
+            -Oz \
+            --enable-bulk-memory \
+            --enable-nontrapping-float-to-int \
+            --enable-sign-ext \
+            --enable-mutable-globals \
+            -o npm/wasm/mid_qr_wasm_bg.wasm
+          echo "Optimised: $(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1)"
+
+      - name: Verify WASM artefacts
+        run: |
+          for f in \
+            npm/wasm/mid_qr_wasm_bg.wasm \
+            npm/wasm/mid_qr_wasm.js \
+            npm/wasm/mid_qr_wasm.d.ts; do
+            [ -f "$f" ] || { echo "::error::Missing: $f"; exit 1; }
+            echo "OK  $f  ($(du -sh "$f" | cut -f1))"
+          done
+
+      # ── 4. Copy WASM → Blazor wwwroot ────────────────────────────────
+      - name: Copy WASM artefacts to Blazor wwwroot
+        run: |
+          mkdir -p wrappers/blazor/wwwroot/wasm
+          cp npm/wasm/mid_qr_wasm_bg.wasm  wrappers/blazor/wwwroot/wasm/
+          cp npm/wasm/mid_qr_wasm.js       wrappers/blazor/wwwroot/wasm/
+          cp npm/wasm/mid_qr_wasm.d.ts     wrappers/blazor/wwwroot/wasm/
+          echo "OK  wasm copied"
+
+      # ── 5. Nimiq scanner → Blazor wwwroot ────────────────────────────
+      - name: Fetch nimiq scanner files
+        run: |
+          BASE="https://raw.githubusercontent.com/nimiq/qr-scanner/master"
+          mkdir -p wrappers/blazor/wwwroot/js/worker
+          for f in \
+            qr-scanner.min.js \
+            qr-scanner-worker.min.js \
+            qr-scanner.umd.min.js; do
+            curl -fsSL "$BASE/$f" \
+              -o "wrappers/blazor/wwwroot/js/worker/$f"
+            echo "OK  wrappers/blazor/wwwroot/js/worker/$f"
+          done
+
+      # ── 6. .NET ──────────────────────────────────────────────────────
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore dependencies
+        working-directory: wrappers/blazor
+        run: dotnet restore MidQr.Blazor.csproj
+
+      - name: Verify Blazor wwwroot is populated
+        run: |
+          for f in \
+            wrappers/blazor/wwwroot/wasm/mid_qr_wasm_bg.wasm \
+            wrappers/blazor/wwwroot/wasm/mid_qr_wasm.js \
+            wrappers/blazor/wwwroot/js/midQrModule.js \
+            wrappers/blazor/wwwroot/js/worker/qr-scanner.umd.min.js; do
+            [ -f "$f" ] || { echo "::error::Missing static asset: $f"; exit 1; }
+            echo "OK  $f"
+          done
+
+      # ── 7. Pack ──────────────────────────────────────────────────────
+      - name: Build & pack NuGet package
+        working-directory: wrappers/blazor
+        run: |
+          dotnet pack MidQr.Blazor.csproj \
+            --configuration Release \
+            --no-restore \
+            -p:Version=${{ steps.ver.outputs.version }} \
+            -p:ContinuousIntegrationBuild=true \
+            --output ../../nuget-out
+
+      - name: Verify package artefacts
+        run: |
+          echo "── Package contents ──────────────────────────────────"
+          ls -lh nuget-out/
+          for f in nuget-out/*.nupkg; do
+            echo ""
+            echo "Package: $f  ($(du -sh "$f" | cut -f1))"
+          done
+
+      # ── 8. Publish ───────────────────────────────────────────────────
+      - name: Push to NuGet.org
+        run: |
+          dotnet nuget push nuget-out/*.nupkg \
+            --api-key    "${{ secrets.NUGET_API_KEY }}" \
+            --source     https://api.nuget.org/v3/index.json \
+            --skip-duplicate
+
+          # Also push symbol package if present
+          if ls nuget-out/*.snupkg 1>/dev/null 2>&1; then
+            dotnet nuget push nuget-out/*.snupkg \
+              --api-key  "${{ secrets.NUGET_API_KEY }}" \
+              --source   https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          fi
+
+          echo ""
+          echo "MidManStudio.MidQr.Blazor ${{ steps.ver.outputs.version }} published."
+          echo "https://www.nuget.org/packages/MidManStudio.MidQr.Blazor/"
