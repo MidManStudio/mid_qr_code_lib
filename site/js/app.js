@@ -1,13 +1,5 @@
 /**
- * app.js — Entry point
- *
- * Initialises the QR engine and wires controls → preview → download.
- *
- * Build / deployment note:
- *   The site expects the following paths to exist at runtime:
- *     ./js/mid-qr.js              ← npm/dist/index.js
- *     ./wasm/mid_qr_wasm_bg.wasm  ← from the dist branch
- *     ./js/worker/qr-scanner.umd.min.js
+ * app.js — Entry point for the generator page.
  */
 
 import { initEngine, generateQr }           from './qr-engine.js';
@@ -17,21 +9,14 @@ import {
   setLoading, setStatus, showQr,
   enableActions, getCurrentSvg,
 }                                            from './preview.js';
-import { initDownload }                     from './download.js';
-
-// ── State ─────────────────────────────────────────────────────────────────────
+import { initDownload }                      from './download.js';
 
 let _hasGenerated = false;
 let _debounceTimer = null;
 let _engineReady   = false;
 
-// ── Generate ──────────────────────────────────────────────────────────────────
-
 async function doGenerate() {
-  if (!_engineReady) {
-    setStatus('Engine loading, please wait…', 'generating');
-    return;
-  }
+  if (!_engineReady) { setStatus('Engine loading…', 'generating'); return; }
 
   clearTimeout(_debounceTimer);
 
@@ -51,13 +36,14 @@ async function doGenerate() {
     const svg = generateQr(data, options);
     showQr(svg);
     enableActions(true);
-    setStatus(`Ready — ${data.length} chars`, 'success');
+
+    const label = options.frame ? ' with frame' : '';
+    setStatus(`Generated${label} — ${data.length} chars`, 'success');
     _hasGenerated = true;
 
     setTimeout(() => {
-      if (document.getElementById('status-dot')?.dataset.state === 'success') {
+      if (document.getElementById('status-dot')?.dataset.state === 'success')
         setStatus('Ready', 'idle');
-      }
     }, 2500);
 
   } catch (err) {
@@ -69,58 +55,40 @@ async function doGenerate() {
   }
 }
 
-// Debounced auto-generate (fires after first manual generate)
-function scheduleAutoGenerate() {
+function scheduleAutoGenerate(e) {
   if (!_hasGenerated || !_engineReady) return;
+  // Don't auto-trigger on tab clicks or type-selector clicks
+  if (e?.target?.closest?.('.tab-btn'))   return;
+  if (e?.target?.closest?.('.type-btn'))  return;
+  if (e?.target?.closest?.('.frame-card')) return;
   clearTimeout(_debounceTimer);
-  _debounceTimer = setTimeout(doGenerate, 480);
+  _debounceTimer = setTimeout(doGenerate, 500);
 }
 
-// ── Boot ──────────────────────────────────────────────────────────────────────
-
 async function boot() {
-
-  // Init UI (synchronous — no WASM needed)
   initPreview();
   initControls(scheduleAutoGenerate);
-  initFormatMenu(fmt => {
-    const btn = document.getElementById('btn-download');
-    if (btn) {
-      const span = btn.childNodes[0];
-      if (span?.nodeType === Node.TEXT_NODE) {
-        span.textContent = `Download ${fmt.toUpperCase()}`;
-      }
-    }
-  });
+  initFormatMenu();
   initDownload({ onStatus: setStatus });
 
-  // Wire generate button
   document.getElementById('btn-generate')?.addEventListener('click', doGenerate);
 
-  // Status
   setStatus('Loading engine…', 'generating');
+  document.getElementById('btn-generate').disabled = true;
 
-  // Load WASM async
   try {
     await initEngine();
     _engineReady = true;
     setStatus('Ready', 'idle');
-
-    // Enable button
-    const btn = document.getElementById('btn-generate');
-    if (btn) btn.disabled = false;
-
+    document.getElementById('btn-generate').disabled = false;
   } catch (err) {
     console.error('Engine init failed:', err);
-    setStatus('Failed to load QR engine', 'error');
-    return;
+    setStatus('Failed to load engine — check console', 'error');
   }
 }
-
-// ── Run ───────────────────────────────────────────────────────────────────────
 
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot);
 } else {
   boot();
-    }
+}
