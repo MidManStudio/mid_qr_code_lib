@@ -1,111 +1,56 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Routing;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
 namespace MidQr.Blazor;
 
 /// <summary>
-/// Blazor QR code scanner component backed by the mid-qr JS/WASM library
-/// and the nimiq camera scanner.
-///
-/// Features
-/// ────────
-/// • Real-time camera decode via nimiq (hand-tuned binarizer for camera frames)
-/// • Locked-mode decode — unwraps mid-qr-v1 payloads, redirects plain URLs
-/// • Optional locked-only mode — non-mid-qr data triggers OnExternalScan instead
-///   of OnQrCodeDetected, so the app can decide what to do
-/// • Auto-stop on successful scan (configurable)
-/// • Camera switching
-/// • Status indicator for connectivity / sync feedback
-///
-/// Usage:
-/// <code>
-/// &lt;MidQrScanner OnQrCodeDetected="HandleScan"
-///               LockedMode="true"
-///               OnExternalScan="HandleExternal"
-///               Width="100%" Height="400px" /&gt;
-/// </code>
+/// Blazor QR code scanner component backed by the mid-qr JS/WASM library.
 /// </summary>
 public partial class MidQrScanner : IAsyncDisposable
 {
+    // ── Path constant ─────────────────────────────────────────────────────────
+    private const string JsModulePath =
+        "./_content/MidManStudio.MidQr.Blazor/js/midQrModule.js";
+
     // ── DI ────────────────────────────────────────────────────────────────────
-
-    [Inject] private IJSRuntime JS { get; set; } = default!;
-
-    [Inject(Key = null)] private IMidQrIconProvider? IconProvider { get; set; }
+    [Inject] private IJSRuntime       JS              { get; set; } = default!;
+    [Inject] private IServiceProvider ServiceProvider { get; set; } = default!;
 
     // ── Parameters ────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Called with the decoded result on every successful scan.
-    /// In locked mode the result contains the unwrapped payload.
-    /// </summary>
+    /// <summary>Called with the decoded result on every successful scan.</summary>
     [Parameter] public EventCallback<MidQrScanResult> OnQrCodeDetected { get; set; }
 
-    /// <summary>
-    /// Called when a QR code is detected but it is NOT a mid-qr locked payload.
-    /// Only fires when <see cref="LockedMode"/> is true.
-    /// Return true to suppress the default redirect behaviour.
-    /// </summary>
+    /// <summary>Called when a non-locked QR is detected in LockedMode.</summary>
     [Parameter] public EventCallback<string> OnExternalScan { get; set; }
 
-    /// <summary>
-    /// When true, only locked mid-qr payloads are accepted.
-    /// All other data triggers <see cref="OnExternalScan"/> instead of
-    /// <see cref="OnQrCodeDetected"/>.
-    /// Default: false
-    /// </summary>
+    /// <summary>Only accept locked mid-qr payloads when true.</summary>
     [Parameter] public bool LockedMode { get; set; }
 
-    /// <summary>CSS width of the scanner root.  Default: "100%"</summary>
-    [Parameter] public string Width { get; set; } = "100%";
+    [Parameter] public string Width   { get; set; } = "100%";
+    [Parameter] public string Height  { get; set; } = "400px";
+    [Parameter] public string CssClass{ get; set; } = string.Empty;
+    [Parameter] public string Style   { get; set; } = string.Empty;
 
-    /// <summary>CSS height of the scanner root.  Default: "400px"</summary>
-    [Parameter] public string Height { get; set; } = "400px";
-
-    /// <summary>Additional CSS class on the root element.</summary>
-    [Parameter] public string CssClass { get; set; } = string.Empty;
-
-    /// <summary>Inline style on the root element.</summary>
-    [Parameter] public string Style { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Preferred camera: "environment" (rear), "user" (front), or a device ID.
-    /// Default: "environment"
-    /// </summary>
+    /// <summary>"environment" (rear), "user" (front), or a deviceId.</summary>
     [Parameter] public string PreferredCamera { get; set; } = "environment";
 
-    /// <summary>Maximum camera-frame decode attempts per second.  Default: 5</summary>
-    [Parameter] public int MaxScansPerSecond { get; set; } = 5;
+    [Parameter] public int  MaxScansPerSecond  { get; set; } = 5;
+    [Parameter] public bool ShowOverlay        { get; set; } = true;
+    [Parameter] public bool ShowControls       { get; set; } = true;
+    [Parameter] public bool ShowCameraSwitch   { get; set; } = true;
+    [Parameter] public bool AutoStopOnSuccess  { get; set; } = true;
+    [Parameter] public int  AutoStopDelayMs    { get; set; } = 800;
 
-    /// <summary>Show the SVG corner-frame overlay.  Default: true</summary>
-    [Parameter] public bool ShowOverlay { get; set; } = true;
-
-    /// <summary>Show start/stop/camera-switch control buttons.  Default: true</summary>
-    [Parameter] public bool ShowControls { get; set; } = true;
-
-    /// <summary>Show the camera-switch button when multiple cameras are available.  Default: true</summary>
-    [Parameter] public bool ShowCameraSwitch { get; set; } = true;
-
-    /// <summary>Automatically stop the scanner after a successful decode.  Default: true</summary>
-    [Parameter] public bool AutoStopOnSuccess { get; set; } = true;
-
-    /// <summary>Delay in milliseconds before auto-stopping after a successful decode.  Default: 800</summary>
-    [Parameter] public int AutoStopDelayMs { get; set; } = 800;
-
-    [Parameter] public string StartLabel      { get; set; } = "Start Scanner";
-    [Parameter] public string StopLabel       { get; set; } = "Stop Scanner";
+    [Parameter] public string StartLabel        { get; set; } = "Start Scanner";
+    [Parameter] public string StopLabel         { get; set; } = "Stop Scanner";
     [Parameter] public string CameraSwitchLabel { get; set; } = "Switch Camera";
     [Parameter] public string ProcessingMessage { get; set; } = "Processing…";
 
-    /// <summary>
-    /// Optional render fragment shown below the controls after a successful scan.
-    /// Receives the last <see cref="MidQrScanResult"/>.
-    /// </summary>
-    [Parameter] public RenderFragment<MidQrScanResult>? ResultContent { get; set; }
-
-    /// <summary>Additional controls injected into the controls bar.</summary>
-    [Parameter] public RenderFragment? ControlsContent { get; set; }
+    [Parameter] public RenderFragment<MidQrScanResult>? ResultContent  { get; set; }
+    [Parameter] public RenderFragment?                  ControlsContent{ get; set; }
 
     // ── Public state ──────────────────────────────────────────────────────────
 
@@ -116,15 +61,16 @@ public partial class MidQrScanner : IAsyncDisposable
 
     private readonly string _instanceId = Guid.NewGuid().ToString("N")[..8];
 
-    private IJSObjectReference? _jsModule;
-    private DotNetObjectReference<MidQrScanner>? _dotNetRef;
+    private IJSObjectReference?                   _jsModule;
+    private DotNetObjectReference<MidQrScanner>?  _dotNetRef;
+    private IMidQrIconProvider?                   _iconProvider;
     private bool _jsInitialised;
 
-    private string _overlaySvg  = string.Empty;
-    private string _spinnerSvg  = string.Empty;
+    private string _overlaySvg = string.Empty;
+    private string _spinnerSvg = string.Empty;
 
     private string _statusMessage = string.Empty;
-    private string _statusType    = string.Empty;   // "info" | "success" | "error"
+    private string _statusType    = string.Empty;
     private CancellationTokenSource? _statusCts;
 
     private MidQrScanResult? _lastResult;
@@ -138,25 +84,22 @@ public partial class MidQrScanner : IAsyncDisposable
     {
         await base.OnInitializedAsync();
 
-        IconProvider ??= new DefaultMidQrIconProvider();
+        _iconProvider = ServiceProvider.GetService<IMidQrIconProvider>()
+                       ?? new DefaultMidQrIconProvider();
 
-        var overlayTask  = IconProvider.GetScanOverlaySvgAsync();
-        var spinnerTask  = IconProvider.GetLoadingSpinnerSvgAsync();
+        var overlayTask = _iconProvider.GetScanOverlaySvgAsync();
+        var spinnerTask = _iconProvider.GetLoadingSpinnerSvgAsync();
         await Task.WhenAll(overlayTask, spinnerTask);
 
         _overlaySvg = overlayTask.Result;
         _spinnerSvg = spinnerTask.Result;
-
         _dotNetRef  = DotNetObjectReference.Create(this);
 
         try
         {
-            _jsModule      = await JS.InvokeAsync<IJSObjectReference>(
-                                 "import", "./midQrModule.js");
+            _jsModule      = await JS.InvokeAsync<IJSObjectReference>("import", JsModulePath);
             _jsInitialised = true;
-
-            // Ask the JS side how many cameras the device has
-            _cameraCount = await _jsModule.InvokeAsync<int>("getCameraCount");
+            _cameraCount   = await _jsModule.InvokeAsync<int>("getCameraCount");
         }
         catch (Exception ex)
         {
@@ -164,34 +107,24 @@ public partial class MidQrScanner : IAsyncDisposable
         }
     }
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
-    {
-        // Nothing auto-starts — the user or the parent component calls StartScanningAsync.
-    }
+    // ── JS-invokable ──────────────────────────────────────────────────────────
 
-    // ── JS-invokable methods (called from midQrModule.js) ─────────────────────
-
-    /// <summary>
-    /// Called by the JS scanner worker for every decoded frame.
-    /// Handles locked-mode unwrapping and LockedMode filtering.
-    /// </summary>
+    /// <summary>Called by JS for every decoded frame.</summary>
     [JSInvokable]
     public async Task OnFrameDecoded(string rawData)
     {
         if (IsProcessing || string.IsNullOrEmpty(rawData)) return;
-        if (!await _scanLock.WaitAsync(0)) return; // drop concurrent calls
+        if (!await _scanLock.WaitAsync(0)) return;
 
         try
         {
             IsProcessing = true;
             await InvokeAsync(StateHasChanged);
 
-            // ── Locked-mode unwrap ────────────────────────────────────────────
             var (payload, wasLocked) = UnwrapLockedPayload(rawData);
 
             if (LockedMode && !wasLocked)
             {
-                // External scan — fire OnExternalScan and do NOT call OnQrCodeDetected
                 if (OnExternalScan.HasDelegate)
                     await OnExternalScan.InvokeAsync(rawData);
                 return;
@@ -209,7 +142,7 @@ public partial class MidQrScanner : IAsyncDisposable
             if (OnQrCodeDetected.HasDelegate)
                 await OnQrCodeDetected.InvokeAsync(result);
 
-            await ShowStatusAsync("✅ Scan successful", "success", 2500);
+            await ShowStatusAsync("Scan successful", "success", 2500);
 
             if (AutoStopOnSuccess)
             {
@@ -225,13 +158,11 @@ public partial class MidQrScanner : IAsyncDisposable
         }
     }
 
-    // ── Public scanner control API ────────────────────────────────────────────
+    // ── Public scanner control ────────────────────────────────────────────────
 
-    /// <summary>Request camera permission and start scanning.</summary>
     public async Task StartScanningAsync()
     {
         if (!_jsInitialised || _jsModule is null || IsScanning) return;
-
         try
         {
             await _jsModule.InvokeVoidAsync(
@@ -250,18 +181,14 @@ public partial class MidQrScanner : IAsyncDisposable
         }
     }
 
-    /// <summary>Stop the scanner.  The camera stream is released.</summary>
     public async Task StopScanningAsync()
     {
         if (!_jsInitialised || _jsModule is null || !IsScanning) return;
-
         try
         {
-            await _jsModule.InvokeVoidAsync(
-                "stopScanner",
-                $"mid-qr-video-{_instanceId}");
+            await _jsModule.InvokeVoidAsync("stopScanner", $"mid-qr-video-{_instanceId}");
         }
-        catch { /* suppress — scanner may already be stopped */ }
+        catch { /* suppress */ }
         finally
         {
             IsScanning   = false;
@@ -270,16 +197,12 @@ public partial class MidQrScanner : IAsyncDisposable
         }
     }
 
-    /// <summary>Cycle to the next available camera.</summary>
     public async Task SwitchCameraAsync()
     {
         if (!_jsInitialised || _jsModule is null || !IsScanning) return;
-
         try
         {
-            await _jsModule.InvokeVoidAsync(
-                "switchCamera",
-                $"mid-qr-video-{_instanceId}");
+            await _jsModule.InvokeVoidAsync("switchCamera", $"mid-qr-video-{_instanceId}");
         }
         catch (Exception ex)
         {
@@ -287,19 +210,13 @@ public partial class MidQrScanner : IAsyncDisposable
         }
     }
 
-    // ── Status indicator ──────────────────────────────────────────────────────
+    // ── Status ────────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Show a status message in the controls bar.
-    /// Pass durationMs = 0 to show indefinitely.
-    /// </summary>
     public async Task ShowStatusAsync(string message, string type = "info", int durationMs = 3000)
     {
-        // Cancel any existing auto-dismiss
         _statusCts?.Cancel();
         _statusCts?.Dispose();
-        _statusCts = null;
-
+        _statusCts     = null;
         _statusMessage = message;
         _statusType    = type;
         await InvokeAsync(StateHasChanged);
@@ -322,50 +239,32 @@ public partial class MidQrScanner : IAsyncDisposable
         catch (TaskCanceledException) { /* expected */ }
     }
 
-    // ── Locked-mode helpers ───────────────────────────────────────────────────
+    // ── Locked payload unwrap ─────────────────────────────────────────────────
 
     private const string LockedPrefix = "mid-qr-v1=";
 
-    /// <summary>
-    /// Attempt to unwrap a locked mid-qr payload from a scanned URL.
-    ///
-    /// Locked URLs look like:
-    ///   https://redirect.example.com/scan?mid-qr-v1=eyJkYXRhIjoiLi4uIn0=
-    ///
-    /// The base64 value is a JSON object: { "data": "&lt;actual payload&gt;" }
-    /// </summary>
     private static (string payload, bool wasLocked) UnwrapLockedPayload(string raw)
     {
         try
         {
-            // Check for the locked marker in the query string
-            int markerIdx = raw.IndexOf(LockedPrefix, StringComparison.Ordinal);
-            if (markerIdx < 0) return (raw, false);
+            int idx = raw.IndexOf(LockedPrefix, StringComparison.Ordinal);
+            if (idx < 0) return (raw, false);
 
-            var b64 = raw[(markerIdx + LockedPrefix.Length)..];
-
-            // Strip any fragment or additional query params after the value
-            var ampIdx = b64.IndexOf('&');
-            if (ampIdx >= 0) b64 = b64[..ampIdx];
-            var hashIdx = b64.IndexOf('#');
-            if (hashIdx >= 0) b64 = b64[..hashIdx];
+            var b64 = raw[(idx + LockedPrefix.Length)..];
+            var amp = b64.IndexOf('&'); if (amp >= 0) b64 = b64[..amp];
+            var hsh = b64.IndexOf('#'); if (hsh >= 0) b64 = b64[..hsh];
 
             var json    = System.Text.Encoding.UTF8.GetString(Convert.FromBase64String(b64));
             var doc     = System.Text.Json.JsonDocument.Parse(json);
             var payload = doc.RootElement.GetProperty("data").GetString() ?? raw;
-
             return (payload, true);
         }
-        catch
-        {
-            // Malformed — treat as plain data
-            return (raw, false);
-        }
+        catch { return (raw, false); }
     }
 
-    // ── Navigation guard (stop camera when leaving the page) ──────────────────
+    // ── Navigation guard (optional — wire up in your page if needed) ──────────
 
-    public async Task OnBeforeInternalNavigation(LocationChangingContext context)
+    public async Task OnBeforeInternalNavigation(LocationChangingContext _)
     {
         await StopScanningAsync();
         _statusCts?.Cancel();
