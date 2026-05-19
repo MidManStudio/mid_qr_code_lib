@@ -1,61 +1,35 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
 namespace MidQr.Blazor;
 
 /// <summary>
 /// Blazor component that renders a QR code SVG via the mid-qr WASM library.
-///
-/// Usage:
-/// <code>
-/// &lt;MidQrCode Data="https://example.com"
-///            Options="@(new MidQrGenerateOptions { Size = 400, ErrorLevel = MidQrErrorLevel.H,
-///                         Gradient = new() { Direction = MidQrGradientDirection.Diagonal,
-///                                            Color1 = "#8B5CF6", Color2 = "#06B6D4" } })"
-///            OnGenerated="OnQrGenerated" /&gt;
-/// </code>
-///
-/// Locked mode:
-/// <code>
-/// &lt;MidQrCode Data="@_sessionPayload"
-///            Options="@(new MidQrGenerateOptions {
-///                         ErrorLevel = MidQrErrorLevel.H,
-///                         Locked = new() { RedirectUrl = "https://your-app.com/scan-redirect" } })"
-///            OnGenerated="OnQrGenerated" /&gt;
-/// </code>
 /// </summary>
 public partial class MidQrCode : IAsyncDisposable
 {
+    // ── Path constant ─────────────────────────────────────────────────────────
+    // Blazor static web assets are served at _content/{PackageId}/...
+    private const string JsModulePath =
+        "./_content/MidManStudio.MidQr.Blazor/js/midQrModule.js";
+
     // ── DI ────────────────────────────────────────────────────────────────────
-
-    [Inject] private IJSRuntime JS { get; set; } = default!;
-
-    /// <summary>
-    /// Optional — inject your VisualElementsService adapter here.
-    /// Falls back to DefaultMidQrIconProvider when not registered.
-    /// </summary>
-    [Inject(Key = null)] private IMidQrIconProvider? IconProvider { get; set; }
+    [Inject] private IJSRuntime        JS              { get; set; } = default!;
+    [Inject] private IServiceProvider  ServiceProvider { get; set; } = default!;
 
     // ── Parameters ────────────────────────────────────────────────────────────
 
     /// <summary>Content to encode into the QR code. Required.</summary>
     [Parameter, EditorRequired] public string Data { get; set; } = string.Empty;
 
-    /// <summary>
-    /// Full generation options.
-    /// When null, sensible defaults are used.
-    /// Locked mode is configured here via Options.Locked.
-    /// </summary>
+    /// <summary>Full generation options.  Locked mode is configured here via Options.Locked.</summary>
     [Parameter] public MidQrGenerateOptions? Options { get; set; }
 
-    /// <summary>
-    /// Convenience theme selector.
-    /// Ignored when Options includes explicit Gradient/Logo settings.
-    /// Default: Standard.
-    /// </summary>
+    /// <summary>Convenience theme preset (ignored when Options includes Gradient/Logo).</summary>
     [Parameter] public MidQrTheme Theme { get; set; } = MidQrTheme.Standard;
 
-    /// <summary>Called after every successful QR code generation.</summary>
+    /// <summary>Called after every successful QR generation.</summary>
     [Parameter] public EventCallback<MidQrResult> OnGenerated { get; set; }
 
     /// <summary>Called when generation fails.</summary>
@@ -67,18 +41,18 @@ public partial class MidQrCode : IAsyncDisposable
     /// <summary>Inline style on the root element.</summary>
     [Parameter] public string Style { get; set; } = string.Empty;
 
-    /// <summary>Text shown in the loading overlay.  Default: "Generating QR code…"</summary>
+    /// <summary>Loading overlay text.  Default: "Generating QR code…"</summary>
     [Parameter] public string LoadingMessage { get; set; } = "Generating QR code…";
 
-    /// <summary>Show a Retry button when generation fails.  Default: true</summary>
+    /// <summary>Show a Retry button when generation fails.</summary>
     [Parameter] public bool ShowRetryOnError { get; set; } = true;
 
-    /// <summary>Optional content rendered below the QR code (validity timer, instructions, etc.).</summary>
+    /// <summary>Optional content rendered below the QR code.</summary>
     [Parameter] public RenderFragment? InfoContent { get; set; }
 
-    // ── Convenience read-only properties ──────────────────────────────────────
+    // ── Public read-only properties ───────────────────────────────────────────
 
-    /// <summary>Whether the QR code is in locked mode.</summary>
+    /// <summary>Whether locked mode is active.</summary>
     public bool IsLocked => Options?.Locked is not null &&
                             !string.IsNullOrEmpty(Options.Locked.RedirectUrl);
 
@@ -87,6 +61,7 @@ public partial class MidQrCode : IAsyncDisposable
     private readonly string _instanceId = Guid.NewGuid().ToString("N")[..8];
 
     private IJSObjectReference? _jsModule;
+    private IMidQrIconProvider? _iconProvider;
     private bool _jsInitialised;
 
     private bool   _isLoading    = false;
@@ -94,15 +69,13 @@ public partial class MidQrCode : IAsyncDisposable
     private string _errorMessage = string.Empty;
     private bool   _isGenerating = false;
 
-    // Cached icon SVGs — loaded once, reused on every render
     private string _spinnerSvg = string.Empty;
     private string _errorSvg   = string.Empty;
     private string _lockedSvg  = string.Empty;
 
-    // Change-detection — compare against previous values to avoid redundant re-generation
-    private string              _lastData    = string.Empty;
+    private string               _lastData    = string.Empty;
     private MidQrGenerateOptions? _lastOptions;
-    private MidQrTheme          _lastTheme   = MidQrTheme.Standard;
+    private MidQrTheme           _lastTheme   = MidQrTheme.Standard;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
@@ -110,26 +83,23 @@ public partial class MidQrCode : IAsyncDisposable
     {
         await base.OnInitializedAsync();
 
-        // Resolve icon provider — prefer DI registration, fall back to default
-        IconProvider ??= new DefaultMidQrIconProvider();
+        // Resolve icon provider — try DI, fall back to built-in default
+        _iconProvider = ServiceProvider.GetService<IMidQrIconProvider>()
+                       ?? new DefaultMidQrIconProvider();
 
-        // Load icon SVGs in parallel
-        var spinnerTask = IconProvider.GetLoadingSpinnerSvgAsync();
-        var errorTask   = IconProvider.GetErrorIconSvgAsync();
-        var lockedTask  = IconProvider.GetLockedIconSvgAsync();
-
+        var spinnerTask = _iconProvider.GetLoadingSpinnerSvgAsync();
+        var errorTask   = _iconProvider.GetErrorIconSvgAsync();
+        var lockedTask  = _iconProvider.GetLockedIconSvgAsync();
         await Task.WhenAll(spinnerTask, errorTask, lockedTask);
 
         _spinnerSvg = spinnerTask.Result;
         _errorSvg   = errorTask.Result;
         _lockedSvg  = lockedTask.Result;
 
-        // Initialise the JS/WASM module
         try
         {
-            _jsModule       = await JS.InvokeAsync<IJSObjectReference>(
-                                  "import", "./midQrModule.js");
-            _jsInitialised  = true;
+            _jsModule      = await JS.InvokeAsync<IJSObjectReference>("import", JsModulePath);
+            _jsInitialised = true;
         }
         catch (Exception ex)
         {
@@ -140,23 +110,15 @@ public partial class MidQrCode : IAsyncDisposable
     protected override async Task OnParametersSetAsync()
     {
         await base.OnParametersSetAsync();
-
-        if (!_jsInitialised) return;
-        if (_isGenerating)   return;
-
-        // Only regenerate when something meaningful changed
-        if (Data == _lastData && Options == _lastOptions && Theme == _lastTheme)
-            return;
-
+        if (!_jsInitialised || _isGenerating) return;
+        if (Data == _lastData && Options == _lastOptions && Theme == _lastTheme) return;
         await GenerateQrCode();
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender && _jsInitialised && string.IsNullOrEmpty(_lastData))
-        {
             await GenerateQrCode();
-        }
     }
 
     // ── Public API ────────────────────────────────────────────────────────────
@@ -178,37 +140,28 @@ public partial class MidQrCode : IAsyncDisposable
 
         try
         {
-            // Snapshot for change detection
             _lastData    = Data;
             _lastOptions = Options;
             _lastTheme   = Theme;
 
-            // Resolve effective options
-            var opts = Options ?? new MidQrGenerateOptions();
-
-            // Auto-upgrade error level to H when locked — redirect URL is longer than raw data
+            var opts      = Options ?? new MidQrGenerateOptions();
             var errorLevel = opts.Locked is not null && opts.ErrorLevel < MidQrErrorLevel.H
                 ? MidQrErrorLevel.H
                 : opts.ErrorLevel;
 
-            // Build the JS options object
-            // (serde-wasm-bindgen on the Rust side deserialises camelCase)
             var jsOpts = BuildJsOptions(opts, errorLevel);
 
-            // Generate — JS module handles locked wrapping internally
             var svg = await _jsModule.InvokeAsync<string>(
                 "generateQrCode",
                 Data,
                 jsOpts,
                 IsLocked ? opts.Locked!.RedirectUrl : null);
 
-            // Inject SVG into the container div
             await _jsModule.InvokeVoidAsync(
                 "setSvgContent",
                 $"mid-qr-container-{_instanceId}",
                 svg);
 
-            // Notify parent
             if (OnGenerated.HasDelegate)
             {
                 await OnGenerated.InvokeAsync(new MidQrResult
@@ -235,10 +188,6 @@ public partial class MidQrCode : IAsyncDisposable
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Build the anonymous options object that is serialised to JS.
-    /// Applies theme presets when the caller has not set Gradient/Logo explicitly.
-    /// </summary>
     private static object BuildJsOptions(MidQrGenerateOptions opts, MidQrErrorLevel errorLevel)
     {
         return new
@@ -256,9 +205,9 @@ public partial class MidQrCode : IAsyncDisposable
             },
             logo = opts.Logo is null ? null : new
             {
-                url         = opts.Logo.Url,
-                sizeRatio   = opts.Logo.SizeRatio,
-                border      = opts.Logo.AddBorder ? new
+                url       = opts.Logo.Url,
+                sizeRatio = opts.Logo.SizeRatio,
+                border    = opts.Logo.AddBorder ? new
                 {
                     color  = opts.Logo.BorderColor,
                     width  = opts.Logo.BorderWidth,
@@ -293,7 +242,7 @@ public partial class MidQrCode : IAsyncDisposable
         if (_jsModule is not null)
         {
             try   { await _jsModule.DisposeAsync(); }
-            catch { /* suppress disposal exceptions */ }
+            catch { /* suppress */ }
         }
     }
 }
