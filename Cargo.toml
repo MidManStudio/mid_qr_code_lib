@@ -8,19 +8,15 @@ resolver = "2"
 [workspace.package]
 version    = "0.1.0"
 edition    = "2021"
-authors    = ["Mid-D-Man"]
+authors    = ["MidManStudio"]
 license    = "MIT"
-repository = "https://github.com/Mid-D-Man/mid-qr"
+repository = "https://github.com/MidManStudio/mid-qr"
 
 [profile.release]
 opt-level     = "s"
 lto           = true
 codegen-units = 1
 # panic = "abort" intentionally removed.
-# With panic="abort", any rxing internal panic becomes a WASM `unreachable`
-# trap that cannot be caught. With the default panic="unwind", wasm-bindgen
-# wraps every exported function in std::panic::catch_unwind so panics are
-# caught at the JS boundary and thrown as JavaScript errors instead of
-# crashing the WASM instance.
-# The binary size cost is ~5-10% larger — acceptable for a working library.
+# With panic="unwind", wasm-bindgen wraps every exported function in
+# std::panic::catch_unwind so panics are caught at the JS boundary.
 strip = true
