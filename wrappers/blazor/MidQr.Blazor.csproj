@@ -1,14 +1,18 @@
 <Project Sdk="Microsoft.NET.Sdk.Razor">
 
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <!--
+      Multi-target net7.0 and net8.0.
+      The .NET 8 SDK (used in CI) compiles both without any extra setup.
+      Consumers on either runtime get the correct TFM automatically.
+    -->
+    <TargetFrameworks>net7.0;net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <LangVersion>12</LangVersion>
     <RootNamespace>MidQr.Blazor</RootNamespace>
     <AssemblyName>MidQr.Blazor</AssemblyName>
 
-    <!-- ── NuGet package identity ────────────────────────────────────── -->
+    <!-- ── NuGet identity ─────────────────────────────────────────── -->
     <PackageId>MidManStudio.MidQr.Blazor</PackageId>
     <Version>0.1.0</Version>
     <Authors>MidManStudio</Authors>
@@ -16,12 +20,13 @@
     <Product>mid-qr Blazor</Product>
     <Copyright>Copyright © 2025 MidManStudio</Copyright>
 
-    <!-- ── NuGet package metadata ────────────────────────────────────── -->
+    <!-- ── NuGet metadata ────────────────────────────────────────── -->
     <Description>
       Blazor component library for mid-qr — free QR code generation and
       real-time camera scanning powered by a Rust/WebAssembly core.
+      Supports .NET 7 and .NET 8 (Blazor WebAssembly and Blazor Server).
       Provides MidQrCode (SVG generator with gradients, logos, frames,
-      custom dot styles) and MidQrScanner (camera feed with locked-payload
+      custom dot styles) and MidQrScanner (camera decode with locked-payload
       support).
     </Description>
     <PackageTags>qr;qrcode;blazor;blazor-webassembly;blazor-server;wasm;scanner;generator;mid-qr;midmanstudio</PackageTags>
@@ -31,30 +36,37 @@
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
 
-    <!-- ── Build options ─────────────────────────────────────────────── -->
+    <!-- ── Build options ──────────────────────────────────────────── -->
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <!-- Suppress missing XML doc warnings on non-public members -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
 
-  <!-- ── Package dependencies ──────────────────────────────────────────── -->
-  <ItemGroup>
+  <!--
+    Conditional package references — each TFM gets the matching ASP.NET version.
+    This prevents the net7.0 build pulling in net8.0-only APIs.
+  -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net7.0'">
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="7.0.0" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.0" />
   </ItemGroup>
 
-  <!-- ── Files packed into the NuGet ──────────────────────────────────── -->
+  <!-- ── Files packed into the NuGet ─────────────────────────────── -->
   <ItemGroup>
-    <!-- Root README becomes the NuGet package readme -->
     <None Include="../../README.md" Pack="true" PackagePath="\"/>
   </ItemGroup>
 
   <!--
-    Static web assets in wwwroot/ are automatically served by Blazor at
+    Static web assets in wwwroot/ are automatically served by Blazor at:
       _content/MidManStudio.MidQr.Blazor/...
 
-    Required files (copied by CI before pack):
+    Required files (written by CI before dotnet pack):
       wwwroot/wasm/mid_qr_wasm_bg.wasm
       wwwroot/wasm/mid_qr_wasm.js
       wwwroot/js/midQrModule.js
