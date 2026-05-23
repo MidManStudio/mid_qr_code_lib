@@ -1,0 +1,43 @@
+{
+  "name": "mid-qr",
+  "version": "0.1.0",
+  "description": "Unified QR code generation and scanning — Rust/WASM core, custom dot styles, gradients, logos, frames.",
+  "type": "module",
+  "main": "dist/index.js",
+  "module": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [ "dist", "wasm", "worker" ],
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types":  "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build:wasm": "wasm-pack build ../crates/mid-qr-wasm --target web --out-dir ../npm/wasm",
+    "build:ts":   "tsc && rollup -c",
+    "build":      "npm run build:wasm && npm run build:ts",
+    "test":       "vitest run"
+  },
+  "keywords": [
+    "qr", "qrcode", "wasm", "webassembly", "rust",
+    "scanner", "generator", "mid-qr", "midmanstudio"
+  ],
+  "author": "MidManStudio",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url":  "https://github.com/MidManStudio/mid-qr.git"
+  },
+  "homepage": "https://midmanstudio.github.io/mid-qr/",
+  "bugs": {
+    "url": "https://github.com/MidManStudio/mid-qr/issues"
+  },
+  "devDependencies": {
+    "typescript":                "^5.0.0",
+    "tslib":                     "^2.6.0",
+    "rollup":                    "^4.0.0",
+    "@rollup/plugin-typescript": "^11.0.0",
+    "vitest":                    "^1.0.0"
+  }
+}
