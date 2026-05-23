@@ -162,14 +162,16 @@
 
         <div class="tab-body">
 
-          <!-- ══ CONTENT ══════════════════════════════ -->
-          <!-- NOTE: only the first panel has is-active; the rest have NO is-hidden -->
+          <!-- ══ CONTENT TAB ══════════════════════════════════════ -->
           <div class="tab-panel is-active" id="tp-content"
                role="tabpanel" aria-labelledby="tb-content">
 
+            <!-- Content Type grid — 14 types, 4-column grid -->
             <div class="field-block">
               <span class="field-label">Content Type</span>
               <div class="type-grid" role="group" aria-label="Content type">
+
+                <!-- Row 1 -->
                 <button class="type-btn is-active" data-type="url">
                   <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
                        stroke="currentColor" stroke-width="1.5" aria-hidden="true">
@@ -180,6 +182,7 @@
                   </svg>
                   URL
                 </button>
+
                 <button class="type-btn" data-type="text">
                   <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -187,6 +190,7 @@
                   </svg>
                   Text
                 </button>
+
                 <button class="type-btn" data-type="wifi">
                   <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -197,6 +201,7 @@
                   </svg>
                   WiFi
                 </button>
+
                 <button class="type-btn" data-type="email">
                   <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -205,6 +210,8 @@
                   </svg>
                   Email
                 </button>
+
+                <!-- Row 2 -->
                 <button class="type-btn" data-type="phone">
                   <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -212,6 +219,7 @@
                   </svg>
                   Phone
                 </button>
+
                 <button class="type-btn" data-type="sms">
                   <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
                        stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
@@ -220,8 +228,93 @@
                   </svg>
                   SMS
                 </button>
-              </div>
+
+                <button class="type-btn" data-type="vcard">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                    <rect x="1.5" y="3.5" width="13" height="9" rx="1.5"/>
+                    <circle cx="5.5" cy="7.2" r="1.3"/>
+                    <path d="M3.2 11.5c0-1.4.9-2 2.3-2s2.3.6 2.3 2"/>
+                    <path d="M9.5 7h3M9.5 9.5h2"/>
+                  </svg>
+                  vCard
+                </button>
+
+                <button class="type-btn" data-type="whatsapp">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M8 1.5C4.4 1.5 1.5 4.2 1.5 7.6c0 1.1.3 2.1.8 3L1.5 14.5l4-.9c.8.4 1.6.6 2.5.6 3.6 0 6.5-2.9 6.5-6.6S11.6 1.5 8 1.5z"/>
+                    <path d="M5.5 6.5c.2.9.8 1.6 1.5 2.1s1.5.7 2 1.2"/>
+                  </svg>
+                  WhatsApp
+                </button>
+
+                <!-- Row 3 -->
+                <button class="type-btn" data-type="instagram">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <rect x="2" y="2" width="12" height="12" rx="3.5"/>
+                    <circle cx="8" cy="8" r="2.5"/>
+                    <circle cx="11.5" cy="4.5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Instagram
+                </button>
+
+                <button class="type-btn" data-type="facebook">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                    <rect x="1.5" y="1.5" width="13" height="13" rx="3"/>
+                    <path d="M10 5.5H8.5A1.5 1.5 0 007 7v7"/>
+                    <path d="M5.5 9h4"/>
+                  </svg>
+                  Facebook
+                </button>
+
+                <button class="type-btn" data-type="linkedin">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <rect x="1.5" y="1.5" width="13" height="13" rx="2.5"/>
+                    <circle cx="5" cy="5.5" r=".75" fill="currentColor" stroke="none"/>
+                    <path d="M5 7.5v5" stroke-linecap="round"/>
+                    <path d="M8.5 7.5v2.5a1.5 1.5 0 003 0V7.5" stroke-linecap="round"/>
+                    <path d="M8.5 7.5v5" stroke-linecap="round"/>
+                  </svg>
+                  LinkedIn
+                </button>
+
+                <button class="type-btn" data-type="telegram">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M14 2L1.5 7l4.5 1.5 1.5 4.5 3-3.5 4 3L14 2z"/>
+                    <path d="M6 8.5l2-2"/>
+                  </svg>
+                  Telegram
+                </button>
+
+                <!-- Row 4 (partial) -->
+                <button class="type-btn" data-type="youtube">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <rect x="1.5" y="4" width="13" height="9" rx="2.5"/>
+                    <path d="M6.5 6.5l4 2-4 2V6.5z" fill="currentColor" stroke="none"/>
+                  </svg>
+                  YouTube
+                </button>
+
+                <button class="type-btn" data-type="app">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">
+                    <rect x="4" y="1.5" width="8" height="13" rx="2"/>
+                    <path d="M8 5v5M6 8l2 2.5L10 8"/>
+                    <path d="M6 13h4"/>
+                  </svg>
+                  App
+                </button>
+
+              </div><!-- /type-grid -->
             </div>
+
+            <!-- ── Field groups — original 6 ─────────────────────────────── -->
 
             <div id="fields-url">
               <div class="field-block">
@@ -290,7 +383,170 @@
               </div>
             </div>
 
-            <!-- ── Locked Payload ──────────────────────────────────── -->
+            <!-- ── Field groups — new 8 ───────────────────────────────────── -->
+
+            <!-- vCard -->
+            <div id="fields-vcard" class="is-hidden">
+              <div class="field-block">
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--sp-3)">
+                  <div class="field-block">
+                    <label class="field-label" for="vcard-first">First Name</label>
+                    <input type="text" id="vcard-first" class="field-input" placeholder="John">
+                  </div>
+                  <div class="field-block">
+                    <label class="field-label" for="vcard-last">Last Name</label>
+                    <input type="text" id="vcard-last" class="field-input" placeholder="Doe">
+                  </div>
+                </div>
+                <label class="field-label" for="vcard-org">Company</label>
+                <input type="text" id="vcard-org" class="field-input" placeholder="Acme Corp">
+                <label class="field-label" for="vcard-title">Job Title</label>
+                <input type="text" id="vcard-title" class="field-input" placeholder="Software Engineer">
+                <label class="field-label" for="vcard-phone">Phone</label>
+                <input type="tel" id="vcard-phone" class="field-input" placeholder="+1 234 567 8900">
+                <label class="field-label" for="vcard-email">Email</label>
+                <input type="email" id="vcard-email" class="field-input" placeholder="john@example.com">
+                <label class="field-label" for="vcard-url">Website</label>
+                <input type="url" id="vcard-url" class="field-input" placeholder="https://example.com">
+              </div>
+            </div>
+
+            <!-- WhatsApp -->
+            <div id="fields-whatsapp" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="wa-phone">Phone Number</label>
+                <input type="tel" id="wa-phone" class="field-input"
+                       placeholder="+1 234 567 8900"
+                       autocomplete="off">
+                <label class="field-label" for="wa-msg">Pre-filled Message <span style="font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></label>
+                <textarea id="wa-msg" class="field-input field-textarea"
+                          placeholder="Hey! Check this out…" rows="3"></textarea>
+              </div>
+            </div>
+
+            <!-- Instagram -->
+            <div id="fields-instagram" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="ig-user">Username</label>
+                <input type="text" id="ig-user" class="field-input"
+                       placeholder="@yourusername"
+                       autocomplete="off" spellcheck="false">
+                <div class="hint-callout">
+                  <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v4" stroke-linecap="round"/>
+                    <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Enter just your username (with or without the @). Generates
+                  <strong>instagram.com/username</strong>.
+                </div>
+              </div>
+            </div>
+
+            <!-- Facebook -->
+            <div id="fields-facebook" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="fb-user">Username or Page URL</label>
+                <input type="text" id="fb-user" class="field-input"
+                       placeholder="yourpage or https://facebook.com/yourpage"
+                       autocomplete="off" spellcheck="false">
+                <div class="hint-callout">
+                  <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v4" stroke-linecap="round"/>
+                    <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Enter a username or a full Facebook URL. If only a username
+                  is entered, <strong>facebook.com/username</strong> is used.
+                </div>
+              </div>
+            </div>
+
+            <!-- LinkedIn -->
+            <div id="fields-linkedin" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="li-user">LinkedIn Username or Profile URL</label>
+                <input type="text" id="li-user" class="field-input"
+                       placeholder="yourname or https://linkedin.com/in/yourname"
+                       autocomplete="off" spellcheck="false">
+                <div class="hint-callout">
+                  <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v4" stroke-linecap="round"/>
+                    <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Enter your username or paste the full LinkedIn profile URL.
+                  A plain username generates <strong>linkedin.com/in/username</strong>.
+                </div>
+              </div>
+            </div>
+
+            <!-- Telegram -->
+            <div id="fields-telegram" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="tg-user">Username</label>
+                <input type="text" id="tg-user" class="field-input"
+                       placeholder="@yourusername"
+                       autocomplete="off" spellcheck="false">
+                <div class="hint-callout">
+                  <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v4" stroke-linecap="round"/>
+                    <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Enter your Telegram username (with or without the @). Generates
+                  <strong>t.me/username</strong>.
+                </div>
+              </div>
+            </div>
+
+            <!-- YouTube -->
+            <div id="fields-youtube" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="yt-url">Channel or Video URL</label>
+                <input type="url" id="yt-url" class="field-input"
+                       placeholder="https://youtube.com/@yourchannel"
+                       autocomplete="off" spellcheck="false">
+                <div class="hint-callout">
+                  <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v4" stroke-linecap="round"/>
+                    <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Paste your channel URL
+                  (e.g. <strong>youtube.com/@channelname</strong>) or a
+                  specific video link.
+                </div>
+              </div>
+            </div>
+
+            <!-- App Store / Play Store -->
+            <div id="fields-app" class="is-hidden">
+              <div class="field-block">
+                <label class="field-label" for="app-url">App Store or Play Store URL</label>
+                <input type="url" id="app-url" class="field-input"
+                       placeholder="https://apps.apple.com/app/… or https://play.google.com/store/…"
+                       autocomplete="off" spellcheck="false">
+                <div class="hint-callout">
+                  <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v4" stroke-linecap="round"/>
+                    <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  Paste either an Apple App Store or Google Play Store link.
+                  For both platforms, use a <strong>universal link service</strong>
+                  (e.g. linktr.ee) in the URL field instead.
+                </div>
+              </div>
+            </div>
+
+            <!-- ── Locked Payload ──────────────────────────────────────────── -->
             <div class="field-block">
               <div class="section-divider">
                 <span>Advanced</span>
@@ -326,7 +582,7 @@
               </div>
             </div>
 
-            <!-- ── Error correction + size ───────────────────────── -->
+            <!-- ── Error correction + size ─────────────────────────────────── -->
             <div class="field-block">
               <span class="field-label">Error Correction</span>
               <div class="pill-group" role="group" aria-label="Error correction level">
@@ -349,7 +605,7 @@
           </div><!-- /tp-content -->
 
 
-          <!-- ══ STYLE — no is-hidden class ══════════ -->
+          <!-- ══ STYLE TAB ════════════════════════════════════════ -->
           <div class="tab-panel" id="tp-style"
                role="tabpanel" aria-labelledby="tb-style">
 
@@ -432,7 +688,7 @@
           </div><!-- /tp-style -->
 
 
-          <!-- ══ EYES — no is-hidden class ═══════════ -->
+          <!-- ══ EYES TAB ═════════════════════════════════════════ -->
           <div class="tab-panel" id="tp-eyes"
                role="tabpanel" aria-labelledby="tb-eyes">
 
@@ -486,7 +742,7 @@
           </div><!-- /tp-eyes -->
 
 
-          <!-- ══ FRAME — no is-hidden class ══════════ -->
+          <!-- ══ FRAME TAB ════════════════════════════════════════ -->
           <div class="tab-panel" id="tp-frame"
                role="tabpanel" aria-labelledby="tb-frame">
 
@@ -528,7 +784,7 @@
           </div><!-- /tp-frame -->
 
 
-          <!-- ══ LOGO — no is-hidden class ═══════════ -->
+          <!-- ══ LOGO TAB ═════════════════════════════════════════ -->
           <div class="tab-panel" id="tp-logo"
                role="tabpanel" aria-labelledby="tb-logo">
 
@@ -619,6 +875,7 @@
         </div>
 
       </section><!-- /panel--controls -->
+
 
       <!-- ═══ PREVIEW ══════════════════════════════════ -->
       <aside class="panel panel--preview" id="panel-preview" aria-label="QR preview">
@@ -711,4 +968,4 @@
   <script src="js/worker/qr-scanner.umd.min.js"></script>
   <script type="module" src="js/app.js"></script>
 </body>
-  </html>
+</html>
