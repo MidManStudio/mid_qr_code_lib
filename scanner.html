@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Free QR code scanner — real-time camera decode. Supports locked mid-qr payloads.">
+  <meta name="theme-color" content="#0d1117">
+  <title>mid-qr — Scanner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/variables.css">
+  <link rel="stylesheet" href="css/reset.css">
+  <link rel="stylesheet" href="css/layout.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/panels.css">
+  <link rel="stylesheet" href="css/responsive.css">
+  <style>
+    /* ── Active nav link ───────────────────────────── */
+    .header-link--active {
+      color: var(--c-text-0);
+      border-color: var(--c-border-2);
+      background: var(--c-bg-4);
+      position: relative;
+    }
+    .header-link--active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; left: 6px; right: 6px;
+      height: 2px;
+      background: var(--grad-brand-h);
+      border-radius: var(--r-pill);
+    }
+
+    /* ── Scanner layout ────────────────────────────── */
+    .scanner-workspace {
+      display: grid;
+      grid-template-columns: 300px 1fr;
+      gap: var(--gap);
+      align-items: start;
+    }
+
+    .panel--scanner-ctrl {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+
+    .scanner-ctrl-body {
+      padding: var(--panel-py) var(--panel-px);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-5);
+    }
+
+    .panel--camera {
+      position: sticky;
+      top: calc(var(--header-h) + var(--sp-8));
+    }
+
+    /* Camera stage */
+    .camera-stage {
+      position: relative;
+      background: #000;
+      border-radius: var(--r-lg) var(--r-lg) 0 0;
+      overflow: hidden;
+      aspect-ratio: 4 / 3;
+    }
+
+    #scanner-video {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    /* Scan overlay */
+    .scan-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+
+    .scan-frame {
+      width: min(260px, 72%);
+      height: min(260px, 72%);
+      position: relative;
+    }
+
+    .scan-corner {
+      position: absolute;
+      width: 22px; height: 22px;
+      border-color: var(--c-blue-400);
+      border-style: solid;
+      opacity: 0.9;
+    }
+    .scan-corner--tl { top: -2px;    left: -2px;  border-width: 3px 0 0 3px; border-radius: 6px 0 0 0; }
+    .scan-corner--tr { top: -2px;    right: -2px; border-width: 3px 3px 0 0; border-radius: 0 6px 0 0; }
+    .scan-corner--bl { bottom: -2px; left: -2px;  border-width: 0 0 3px 3px; border-radius: 0 0 0 6px; }
+    .scan-corner--br { bottom: -2px; right: -2px; border-width: 0 3px 3px 0; border-radius: 0 0 6px 0; }
+
+    .scan-line {
+      position: absolute;
+      top: 6%; left: 4%; right: 4%;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, var(--c-blue-400), transparent);
+      animation: scan-anim 2s ease-in-out infinite;
+    }
+    @keyframes scan-anim {
+      0%   { transform: translateY(0);    opacity: .4; }
+      50%  {                              opacity: 1;  }
+      100% { transform: translateY(248px); opacity: .4; }
+    }
+
+    /* Camera idle screen */
+    .camera-idle {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--sp-4);
+      background: var(--c-bg-3);
+    }
+    .camera-idle__icon {
+      width: 56px; height: 56px;
+      color: var(--c-text-2);
+      opacity: .6;
+    }
+    .camera-idle__text {
+      font-size: var(--text-sm);
+      color: var(--c-text-2);
+      text-align: center;
+      max-width: 200px;
+      line-height: 1.6;
+    }
+
+    /* Camera controls bar */
+    .camera-controls {
+      display: flex;
+      gap: var(--sp-2);
+      padding: var(--sp-3) var(--panel-px);
+      background: var(--c-bg-3);
+      border-top: 1px solid var(--c-border-1);
+      border-radius: 0 0 var(--r-lg) var(--r-lg);
+    }
+    .camera-controls .btn { flex: 1; }
+
+    /* Result section */
+    .result-section {
+      padding: var(--sp-5) var(--panel-px);
+      border-top: 1px solid var(--c-border-1);
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-3);
+      min-height: 120px;
+    }
+
+    .result-label {
+      font-size: var(--text-xs);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .07em;
+      color: var(--c-text-2);
+    }
+
+    .result-box {
+      padding: var(--sp-3) var(--sp-4);
+      background: var(--c-bg-0);
+      border: 1px solid var(--c-border-1);
+      border-radius: var(--r-sm);
+      font-size: var(--text-sm);
+      color: var(--c-text-2);
+      font-family: var(--font-mono);
+      word-break: break-all;
+      min-height: 52px;
+      line-height: 1.6;
+      transition: border-color var(--t-base), color var(--t-base);
+    }
+    .result-box.has-result {
+      color: var(--c-text-0);
+      border-color: var(--c-success);
+    }
+    .result-box.is-locked {
+      border-color: var(--c-blue-500);
+    }
+    .result-box.is-rejected {
+      border-color: var(--c-red-500);
+      color: var(--c-red-400);
+    }
+
+    .result-meta {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      font-size: var(--text-xs);
+      color: var(--c-text-2);
+    }
+
+    .result-badge {
+      padding: 2px 8px;
+      border-radius: var(--r-pill);
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .05em;
+    }
+    .result-badge--locked {
+      background: rgba(37,99,235,.15);
+      color: var(--c-blue-400);
+      border: 1px solid rgba(37,99,235,.3);
+    }
+    .result-badge--plain {
+      background: rgba(16,185,129,.12);
+      color: var(--c-success);
+      border: 1px solid rgba(16,185,129,.25);
+    }
+    .result-badge--rejected {
+      background: rgba(230,57,70,.12);
+      color: var(--c-red-400);
+      border: 1px solid rgba(230,57,70,.25);
+    }
+
+    .result-actions {
+      display: flex;
+      gap: var(--sp-2);
+      flex-wrap: wrap;
+    }
+
+    /* History log */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: var(--sp-1);
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      gap: var(--sp-2);
+      padding: var(--sp-2) var(--sp-3);
+      background: var(--c-bg-3);
+      border-radius: var(--r-xs);
+      font-size: var(--text-xs);
+      color: var(--c-text-1);
+      cursor: pointer;
+      transition: background var(--t-fast);
+    }
+    .history-item:hover { background: var(--c-bg-4); }
+    .history-item__text {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      font-family: var(--font-mono);
+    }
+    .history-item__time {
+      flex-shrink: 0;
+      color: var(--c-text-2);
+    }
+
+    /* Responsive */
+    @media (max-width: 860px) {
+      .scanner-workspace {
+        grid-template-columns: 1fr;
+      }
+      .panel--camera { position: static; }
+    }
+    @media (max-width: 480px) {
+      .camera-controls { flex-wrap: wrap; }
+    }
+  </style>
+</head>
+<body>
+
+  <div class="bg-orb bg-orb--blue" aria-hidden="true"></div>
+  <div class="bg-orb bg-orb--red"  aria-hidden="true"></div>
+
+  <header class="site-header" role="banner">
+    <div class="header-inner">
+
+      <a href="index.html" class="logo" aria-label="mid-qr home">
+        <svg class="logo__mark" viewBox="0 0 28 28" fill="none" aria-hidden="true">
+          <rect x="2"  y="2"  width="10" height="10" rx="2" fill="url(#lg2)"/>
+          <rect x="16" y="2"  width="10" height="10" rx="2" fill="url(#lg2)"/>
+          <rect x="2"  y="16" width="10" height="10" rx="2" fill="url(#lg2)"/>
+          <rect x="18" y="18" width="4"  height="4"  rx="1" fill="url(#lg2)"/>
+          <rect x="16" y="16" width="4"  height="4"  rx="1" fill="url(#lg2)" opacity=".45"/>
+          <rect x="22" y="16" width="4"  height="4"  rx="1" fill="url(#lg2)" opacity=".45"/>
+          <rect x="16" y="22" width="4"  height="4"  rx="1" fill="url(#lg2)" opacity=".45"/>
+          <rect x="22" y="22" width="4"  height="4"  rx="1" fill="url(#lg2)" opacity=".6"/>
+          <defs>
+            <linearGradient id="lg2" x1="0" y1="0" x2="28" y2="28" gradientUnits="userSpaceOnUse">
+              <stop offset="0%"   stop-color="#e63946"/>
+              <stop offset="50%"  stop-color="#7c3aed"/>
+              <stop offset="100%" stop-color="#2563eb"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span class="logo__text">mid<span class="logo__accent">-qr</span></span>
+        <span class="logo__chip">FREE</span>
+      </a>
+
+      <p class="header-tagline">Real-time QR scanner &middot; Locked payload support</p>
+
+      <nav class="header-nav" aria-label="Site navigation">
+        <a href="index.html" class="header-link">
+          <svg class="header-link__icon" viewBox="0 0 16 16" fill="none"
+               stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2" y="2" width="5" height="5" rx="1"/>
+            <rect x="9" y="2" width="5" height="5" rx="1"/>
+            <rect x="2" y="9" width="5" height="5" rx="1"/>
+            <rect x="10" y="10" width="2" height="2" rx=".5"/>
+            <rect x="9"  y="9"  width="2" height="2" rx=".5"/>
+            <rect x="13" y="9"  width="2" height="2" rx=".5"/>
+            <rect x="9"  y="13" width="2" height="2" rx=".5"/>
+          </svg>
+          Generator
+        </a>
+        <a href="scanner.html" class="header-link header-link--active" aria-current="page">
+          <svg class="header-link__icon" viewBox="0 0 16 16" fill="none"
+               stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+            <rect x="2" y="4" width="12" height="9" rx="1.5"/>
+            <circle cx="8" cy="8.5" r="2.5"/>
+            <path d="M6 2h4" stroke-linecap="round"/>
+          </svg>
+          Scanner
+        </a>
+        <a href="https://github.com/Mid-D-Man/mid-qr"
+           class="header-link" target="_blank" rel="noopener noreferrer">
+          <svg class="header-link__icon" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 2C6.477 2 2 6.484 2 12.017c0 4.425 2.865 8.18 6.839 9.504.5.092.682-.217.682-.483 0-.237-.008-.868-.013-1.703-2.782.605-3.369-1.343-3.369-1.343-.454-1.158-1.11-1.466-1.11-1.466-.908-.62.069-.608.069-.608 1.003.07 1.531 1.032 1.531 1.032.892 1.53 2.341 1.088 2.91.832.092-.647.35-1.088.636-1.338-2.22-.253-4.555-1.113-4.555-4.951 0-1.093.39-1.988 1.029-2.688-.103-.253-.446-1.272.098-2.65 0 0 .84-.27 2.75 1.026A9.564 9.564 0 0112 6.844c.85.004 1.705.115 2.504.337 1.909-1.296 2.747-1.027 2.747-1.027.546 1.379.202 2.398.1 2.651.64.7 1.028 1.595 1.028 2.688 0 3.848-2.339 4.695-4.566 4.943.359.309.678.92.678 1.855 0 1.338-.012 2.419-.012 2.747 0 .268.18.58.688.482A10.019 10.019 0 0022 12.017C22 6.484 17.522 2 12 2z"/>
+          </svg>
+          GitHub
+        </a>
+      </nav>
+
+    </div>
+  </header>
+
+  <main class="site-main">
+    <div class="scanner-workspace">
+
+      <!-- ═══ LEFT — Controls ════════════════════════ -->
+      <section class="panel panel--scanner-ctrl" aria-label="Scanner controls">
+
+        <div class="scanner-ctrl-body">
+
+          <div class="field-block">
+            <div class="label-value-row">
+              <label class="field-label" for="locked-mode">Locked Mode Only</label>
+              <label class="toggle">
+                <input type="checkbox" id="locked-mode" role="switch"
+                       aria-label="Only accept locked mid-qr payloads">
+                <span class="toggle__track"></span>
+              </label>
+            </div>
+            <div class="hint-callout" style="margin-top: var(--sp-2)">
+              <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                   stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <rect x="3" y="8" width="10" height="7" rx="1.5"/>
+                <path d="M6 8V6a2 2 0 014 0v2" stroke-linecap="round"/>
+              </svg>
+              When on, only QR codes generated with Locked Payload are accepted.
+              All others are rejected.
+            </div>
+          </div>
+
+          <div class="field-block">
+            <span class="field-label">Preferred Camera</span>
+            <div class="pill-group" role="group" aria-label="Camera preference">
+              <button class="pill is-active" data-group="cam-pref" data-value="environment">
+                Rear
+              </button>
+              <button class="pill" data-group="cam-pref" data-value="user">
+                Front
+              </button>
+            </div>
+          </div>
+
+          <div class="field-block">
+            <span class="field-label">Scan Rate</span>
+            <div class="label-value-row" style="margin-bottom: var(--sp-1)">
+              <span style="font-size: var(--text-xs); color: var(--c-text-2)">Frames / second</span>
+              <span class="field-value"><span id="scan-rate-display">5</span></span>
+            </div>
+            <input type="range" id="scan-rate" class="field-range"
+                   min="1" max="25" step="1" value="5">
+          </div>
+
+          <div class="status-bar" id="ctrl-status" role="status" aria-live="polite"
+               style="border-radius: var(--r-sm); border: 1px solid var(--c-border-1); margin-top: auto;">
+            <span class="status-dot" id="ctrl-status-dot" data-state="idle"></span>
+            <span id="ctrl-status-text">Ready to scan</span>
+          </div>
+
+        </div>
+
+      </section>
+
+      <!-- ═══ RIGHT — Camera + Results ══════════════ -->
+      <div class="panel panel--camera" id="panel-camera">
+
+        <!-- Camera feed -->
+        <div class="camera-stage" id="camera-stage">
+
+          <!-- Idle placeholder -->
+          <div class="camera-idle" id="camera-idle">
+            <svg class="camera-idle__icon" viewBox="0 0 56 56" fill="none"
+                 stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+              <rect x="4" y="14" width="48" height="32" rx="4"/>
+              <circle cx="28" cy="30" r="10"/>
+              <circle cx="28" cy="30" r="4" fill="currentColor" stroke="none" opacity=".4"/>
+              <path d="M20 14V10a2 2 0 012-2h12a2 2 0 012 2v4" stroke-linecap="round"/>
+            </svg>
+            <p class="camera-idle__text">Press Start Scanner to activate your camera</p>
+          </div>
+
+          <!-- Video element -->
+          <video id="scanner-video" autoplay muted playsinline
+                 class="is-hidden" aria-label="Camera feed"></video>
+
+          <!-- Scan frame overlay -->
+          <div class="scan-overlay is-hidden" id="scan-overlay" aria-hidden="true">
+            <div class="scan-frame">
+              <div class="scan-corner scan-corner--tl"></div>
+              <div class="scan-corner scan-corner--tr"></div>
+              <div class="scan-corner scan-corner--bl"></div>
+              <div class="scan-corner scan-corner--br"></div>
+              <div class="scan-line" id="scan-line"></div>
+            </div>
+          </div>
+
+        </div><!-- /camera-stage -->
+
+        <!-- Camera buttons -->
+        <div class="camera-controls">
+          <button class="btn btn--generate" id="btn-start"
+                  style="padding: 12px 16px; font-size: var(--text-sm);">
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" aria-hidden="true">
+              <path d="M4 3l10 5-10 5V3z"/>
+            </svg>
+            Start Scanner
+          </button>
+          <button class="btn btn--ghost btn--sm" id="btn-stop" disabled>
+            <svg viewBox="0 0 16 16" fill="currentColor" width="14" height="14" aria-hidden="true">
+              <rect x="3" y="3" width="10" height="10" rx="1"/>
+            </svg>
+            Stop
+          </button>
+          <button class="btn btn--ghost btn--sm" id="btn-switch-cam" disabled>
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor"
+                 stroke-width="1.5" stroke-linecap="round" width="14" height="14" aria-hidden="true">
+              <path d="M2 5a6 6 0 0110.5-1.5M14 11a6 6 0 01-10.5 1.5"/>
+              <path d="M14 7.5V5h-2.5M2 8.5V11h2.5"/>
+            </svg>
+            Switch
+          </button>
+        </div>
+
+        <!-- Result section -->
+        <div class="result-section" id="result-section">
+          <span class="result-label">Result</span>
+
+          <div class="result-box" id="result-box" aria-live="polite" aria-atomic="true">
+            Point your camera at a QR code to begin scanning&hellip;
+          </div>
+
+          <div class="result-meta is-hidden" id="result-meta">
+            <span class="result-badge" id="result-badge"></span>
+            <span id="result-time" style="color: var(--c-text-2)"></span>
+          </div>
+
+          <div class="result-actions is-hidden" id="result-actions">
+            <button class="btn btn--ghost btn--sm" id="btn-copy-result">
+              <svg class="btn__icon-sm" viewBox="0 0 16 16" fill="none"
+                   stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <rect x="5.5" y="5.5" width="8" height="8" rx="1.5"/>
+                <path d="M10.5 5.5V3.5A1.5 1.5 0 009 2H3.5A1.5 1.5 0 002 3.5V9A1.5 1.5 0 003.5 10.5h2"/>
+              </svg>
+              Copy Result
+            </button>
+            <button class="btn btn--ghost btn--sm" id="btn-open-url" class="is-hidden">
+              <svg class="btn__icon-sm" viewBox="0 0 16 16" fill="none"
+                   stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                <path d="M6 3H3a1 1 0 00-1 1v9a1 1 0 001 1h9a1 1 0 001-1v-3"/>
+                <path d="M9.5 2H14v4.5M14 2L8 8" stroke-linecap="round"/>
+              </svg>
+              Open URL
+            </button>
+          </div>
+        </div>
+
+        <!-- Scan history -->
+        <div class="result-section" id="history-section" style="border-top: 1px solid var(--c-border-0);">
+          <div class="label-value-row">
+            <span class="result-label">History</span>
+            <button class="btn btn--ghost btn--xs" id="btn-clear-history">Clear</button>
+          </div>
+          <div class="history-list" id="history-list">
+            <p style="font-size: var(--text-xs); color: var(--c-text-2); padding: var(--sp-1) 0;">
+              Scan results appear here
+            </p>
+          </div>
+        </div>
+
+      </div><!-- /panel--camera -->
+
+    </div>
+  </main>
+
+  <script src="js/worker/qr-scanner.umd.min.js"></script>
+  <script type="module" src="js/scanner-page.js"></script>
+</body>
+  </html>
