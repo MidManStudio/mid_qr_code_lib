@@ -29,29 +29,27 @@
       "preview";
   }
 
-  /* Preview no longer needs to be sticky */
   .panel--preview {
     position: static;
     top: auto;
   }
 
-  /* Compact header */
   .site-header { height: 56px; }
   :root { --header-h: 56px; }
 
   .logo__chip { display: none; }
 
-  /* Tab nav - make tabs slightly smaller */
+  /* Type grid drops from 4 cols to 3 on tablet */
+  .type-grid { grid-template-columns: repeat(3, 1fr); }
+
   .tab-btn {
     padding: 11px 4px 9px;
     font-size: 9px;
   }
   .tab-btn__icon { width: 15px; height: 15px; }
 
-  /* Preview stage */
   .qr-stage { min-height: 280px; padding: var(--sp-8); }
 
-  /* Style grids can go wider */
   .style-grid { grid-template-columns: repeat(3, 1fr); }
   .frame-grid { grid-template-columns: repeat(4, 1fr); }
 }
@@ -67,45 +65,38 @@
 
   .site-main { padding-top: var(--sp-5); padding-bottom: var(--sp-16); }
 
-  /* Header */
   .header-link span:not(.header-link__icon) { display: none; }
   .header-link { padding: 6px 10px; }
 
-  /* Reduce tab label font */
   .tab-btn {
-    font-size: 0;  /* hide text, icon only */
+    font-size: 0;
     padding: 13px 4px;
     flex: none;
     width: 20%;
   }
   .tab-btn__icon { width: 18px; height: 18px; }
 
-  /* Show text again on active */
   .tab-btn.is-active {
     font-size: 9px;
     letter-spacing: 0.05em;
   }
 
-  /* Type grid: 3 cols still, but smaller */
-  .type-grid { gap: var(--sp-1); }
+  /* Type grid stays 3 cols on mobile until 380px */
+  .type-grid { grid-template-columns: repeat(3, 1fr); gap: var(--sp-1); }
   .type-btn { padding: 9px 4px; font-size: 10px; }
   .type-btn__icon { width: 14px; height: 14px; }
 
-  /* Pill groups wrap */
   .pill-group { gap: var(--sp-1); }
   .pill { padding: 4px 9px; }
 
-  /* Color pair stacks */
   .color-pair { grid-template-columns: 1fr; gap: var(--sp-2); }
 
-  /* Style grids */
   .style-grid { grid-template-columns: repeat(2, 1fr); }
   .style-grid--sm { grid-template-columns: repeat(2, 1fr); }
   .frame-grid { grid-template-columns: repeat(3, 1fr); }
   .style-card { padding: 10px 6px 8px; }
   .style-card__preview { width: 40px; height: 40px; }
 
-  /* Preview */
   .preview-header {
     flex-wrap: wrap;
     gap: var(--sp-2);
@@ -118,10 +109,8 @@
     padding: var(--sp-6);
   }
 
-  /* Generate button */
   .btn--generate { padding: 13px var(--sp-4); font-size: var(--text-sm); }
 
-  /* Hex inputs — hide on small screens to save space */
   .field-input--hex { display: none; }
 }
 
@@ -131,6 +120,7 @@
 
   .logo__text { font-size: var(--text-base); }
 
+  /* Type grid collapses to 2 cols on very small screens */
   .type-grid { grid-template-columns: repeat(2, 1fr); }
 
   .frame-grid { grid-template-columns: repeat(2, 1fr); }
@@ -142,7 +132,6 @@
     font-size: 0;
   }
 
-  /* Only show 4 tabs at a time on tiny screens — hide logo tab label */
   .qr-stage { min-height: 200px; }
 }
 
@@ -174,4 +163,4 @@
   .workspace { display: block; }
   .panel--preview { border: none; box-shadow: none; }
   .qr-stage { background: white; border: none; }
-    }
+}
