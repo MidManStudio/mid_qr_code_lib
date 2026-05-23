@@ -1,6 +1,5 @@
 /**
  * controls.js — All QR generator option controls.
- * Fixed: style grids populated, locked mode added, collapsibles wired.
  */
 
 // ── SVG helpers (mirrors Rust generate.rs) ────────────────────────────────────
@@ -268,7 +267,12 @@ function initTabs() {
 
 function initContentType() {
   const grid     = document.querySelector('.type-grid');
-  const allTypes = ['url','text','wifi','email','phone','sms'];
+  // All 14 content types — must match data-type attrs and fields-{type} IDs in HTML
+  const allTypes = [
+    'url', 'text', 'wifi', 'email', 'phone', 'sms',
+    'vcard', 'whatsapp', 'instagram', 'facebook',
+    'linkedin', 'telegram', 'youtube', 'app',
+  ];
   if (!grid) return;
 
   grid.addEventListener('click', e => {
@@ -356,7 +360,7 @@ function initLogoUpload() {
   bindToggle('logo-border-enabled', 'logo-border-section');
 }
 
-// ── Section divider style (content panel) ─────────────────────────────────────
+// ── Section divider style ─────────────────────────────────────────────────────
 
 function injectDividerStyle() {
   if (document.getElementById('_divider-style')) return;
@@ -384,8 +388,8 @@ export function initControls(onChange) {
   initContentType();
   initPillGroups();
 
-  buildStyleGrid('module-style-grid',  MODULE_STYLES,    modulePreviewSVG,   'square');
-  buildStyleGrid('corner-sq-grid',     CORNER_SQ_STYLES, cornerSqPreviewSVG, 'square');
+  buildStyleGrid('module-style-grid',  MODULE_STYLES,     modulePreviewSVG,    'square');
+  buildStyleGrid('corner-sq-grid',     CORNER_SQ_STYLES,  cornerSqPreviewSVG,  'square');
   buildStyleGrid('corner-dot-grid',    CORNER_DOT_STYLES, cornerDotPreviewSVG, 'square');
   buildFrameGrid();
 
@@ -413,12 +417,12 @@ export function initControls(onChange) {
 
   initLogoUpload();
 
-  // onChange delegation — skip tab and type clicks
   if (typeof onChange === 'function') {
     document.getElementById('workspace')?.addEventListener('input', onChange);
     document.getElementById('workspace')?.addEventListener('click', e => {
-      if (e.target.closest('.tab-btn'))  return;
-      if (e.target.closest('.type-btn')) return;
+      if (e.target.closest('.tab-btn'))   return;
+      if (e.target.closest('.type-btn'))  return;
+      if (e.target.closest('.frame-card')) return;
       onChange(e);
     });
   }
@@ -444,30 +448,108 @@ function getContentType() {
   return document.querySelector('.type-btn.is-active')?.dataset.type ?? 'url';
 }
 
+// ── Content builders ──────────────────────────────────────────────────────────
+
 function buildRawData() {
   const type = getContentType();
+
   switch (type) {
-    case 'url':   return gVal('input-url').trim() || 'https://example.com';
-    case 'text':  return gVal('input-text').trim() || 'Hello World';
+
+    // ── Original types ────────────────────────────────────────────────────────
+
+    case 'url':
+      return gVal('input-url').trim() || 'https://example.com';
+
+    case 'text':
+      return gVal('input-text').trim() || 'Hello World';
+
     case 'wifi': {
       const ssid = gVal('input-wifi-ssid');
       const pass = gVal('input-wifi-pass');
       const enc  = gVal('input-wifi-enc');
       return `WIFI:T:${enc};S:${ssid};P:${pass};;`;
     }
+
     case 'email': {
       const to   = gVal('input-email-to');
       const subj = encodeURIComponent(gVal('input-email-subject'));
       const body = encodeURIComponent(gVal('input-email-body'));
       return `mailto:${to}?subject=${subj}&body=${body}`;
     }
-    case 'phone': return `tel:${gVal('input-phone')}`;
+
+    case 'phone':
+      return `tel:${gVal('input-phone')}`;
+
     case 'sms': {
       const to   = gVal('input-sms-to');
       const body = encodeURIComponent(gVal('input-sms-body'));
       return `sms:${to}?body=${body}`;
     }
-    default: return gVal('input-url').trim();
+
+    // ── New types ─────────────────────────────────────────────────────────────
+
+    case 'vcard': {
+      const first = gVal('vcard-first').trim();
+      const last  = gVal('vcard-last').trim();
+      const org   = gVal('vcard-org').trim();
+      const title = gVal('vcard-title').trim();
+      const phone = gVal('vcard-phone').trim();
+      const email = gVal('vcard-email').trim();
+      const url   = gVal('vcard-url').trim();
+      const fn    = [first, last].filter(Boolean).join(' ') || 'Name';
+      let vc = `BEGIN:VCARD\nVERSION:3.0\nN:${last};${first}\nFN:${fn}\n`;
+      if (org)   vc += `ORG:${org}\n`;
+      if (title) vc += `TITLE:${title}\n`;
+      if (phone) vc += `TEL:${phone}\n`;
+      if (email) vc += `EMAIL:${email}\n`;
+      if (url)   vc += `URL:${url}\n`;
+      vc += 'END:VCARD';
+      return vc;
+    }
+
+    case 'whatsapp': {
+      const phone = gVal('wa-phone').trim().replace(/[\s\-\(\)]/g, '');
+      const msg   = gVal('wa-msg').trim();
+      const base  = `https://wa.me/${phone}`;
+      return msg ? `${base}?text=${encodeURIComponent(msg)}` : base;
+    }
+
+    case 'instagram': {
+      const user = gVal('ig-user').trim().replace(/^@/, '');
+      return user ? `https://instagram.com/${user}` : 'https://instagram.com';
+    }
+
+    case 'facebook': {
+      const val = gVal('fb-user').trim();
+      if (!val) return 'https://facebook.com';
+      return val.startsWith('http') ? val : `https://facebook.com/${val}`;
+    }
+
+    case 'linkedin': {
+      const val = gVal('li-user').trim();
+      if (!val) return 'https://linkedin.com';
+      if (val.startsWith('http')) return val;
+      // Strip leading slash so we don't double up
+      return `https://linkedin.com/in/${val.replace(/^\//, '')}`;
+    }
+
+    case 'telegram': {
+      const user = gVal('tg-user').trim().replace(/^@/, '');
+      return user ? `https://t.me/${user}` : 'https://t.me';
+    }
+
+    case 'youtube': {
+      const url = gVal('yt-url').trim();
+      return url || 'https://youtube.com';
+    }
+
+    case 'app': {
+      const url = gVal('app-url').trim();
+      return url || 'https://apps.apple.com';
+    }
+
+    default:
+      return gVal('input-url').trim() || 'https://example.com';
   }
 }
 
@@ -492,8 +574,7 @@ export function getOptions() {
   const eyeEnabled    = g('eye-color-enabled')?.checked;
   const frameStyle    = getActiveFrame();
 
-  // Force H when locked or logo present
-  const ecBase = getActivePill('ec') ?? 'M';
+  const ecBase  = getActivePill('ec') ?? 'M';
   const ecLevel = lockedEnabled ? 'H' : ecBase;
 
   return {
