@@ -40,7 +40,6 @@
 .tab-btn.is-active { color: var(--c-text-0); }
 .tab-btn.is-active .tab-btn__icon { color: var(--c-blue-400); }
 
-/* Gradient underline for active tab */
 .tab-btn::after {
   content: '';
   position: absolute;
@@ -78,7 +77,7 @@
 
 .type-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: var(--sp-2);
 }
 
@@ -365,7 +364,6 @@
   justify-content: center;
 }
 
-/* SVG injected by JS sits here */
 .qr-output svg {
   max-width: 100%;
   height: auto;
@@ -379,7 +377,6 @@
   to   { opacity: 1; transform: none; }
 }
 
-/* Empty state */
 .qr-empty {
   display: flex;
   flex-direction: column;
@@ -399,7 +396,6 @@
 }
 .qr-empty__label strong { color: var(--c-text-1); }
 
-/* Loading overlay */
 .qr-loading {
   position: absolute;
   inset: 0;
