@@ -7,7 +7,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 [![Build](https://img.shields.io/github/actions/workflow/status/MidManStudio/mid-qr/build-wasm.yml?branch=main)](https://github.com/MidManStudio/mid-qr/actions)
 
-**Live demo:** https://midmanstudio.github.io/mid-qr/
+**Live demo:** https://midmanstudio.github.io/mid_qr_code_lib/
 
 ---
 
