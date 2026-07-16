@@ -4,13 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       override_stubs:
-        description: 'Overwrite existing stub files (true/false)'
+        description: 'Overwrite existing stub files'
         required: false
+        type: choice
         default: 'false'
+        options:
+          - 'false'
+          - 'true'
       dry_run:
-        description: 'Preview without writing (true/false)'
+        description: 'true = preview only. false = actually write + commit.'
         required: false
-        default: 'false'
+        type: choice
+        default: 'true'
+        options:
+          - 'true'
+          - 'false'
   push:
     paths:
       - '.mdix/**'
@@ -23,4 +31,5 @@ jobs:
     with:
       template:       '.mdix/project_structure/project_structure.mdix'
       override_stubs: ${{ inputs.override_stubs || 'false' }}
-      dry_run:        ${{ inputs.dry_run || 'false' }}
+      # Forced 'true' on every push; only a manual dispatch can flip this.
+      dry_run:        ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run || 'true' }}
