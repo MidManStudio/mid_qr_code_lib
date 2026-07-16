@@ -2,10 +2,10 @@
 
 > Unified QR code generation and scanning — Rust/WebAssembly core, JS npm package, Blazor wrapper.
 
-[![npm](https://img.shields.io/npm/v/mid-qr?color=%232563eb&label=npm)](https://www.npmjs.com/package/mid-qr)
+[![npm](https://img.shields.io/npm/v/%40midmanstudio%2Fmid-qr?color=%232563eb&label=npm)](https://www.npmjs.com/package/@midmanstudio/mid-qr)
 [![NuGet](https://img.shields.io/nuget/v/MidManStudio.MidQr.Blazor?color=%237c3aed&label=nuget)](https://www.nuget.org/packages/MidManStudio.MidQr.Blazor/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Build](https://img.shields.io/github/actions/workflow/status/MidManStudio/mid-qr/build-wasm.yml?branch=main)](https://github.com/MidManStudio/mid-qr/actions)
+[![Build](https://img.shields.io/github/actions/workflow/status/MidManStudio/mid_qr_code_lib/build-wasm.yml?branch=main)](https://github.com/MidManStudio/mid_qr_code_lib/actions)
 
 **Live demo:** https://midmanstudio.github.io/mid_qr_code_lib/
 
@@ -45,17 +45,17 @@ mid-qr is a high-quality QR code library built around a **Rust/WASM core**. It e
 ### JavaScript / TypeScript
 
 ```bash
-npm install mid-qr
+npm install @midmanstudio/mid-qr
 ```
 
 ```html
 <!-- Required: load the nimiq UMD bundle BEFORE your module script -->
-<script src="node_modules/mid-qr/worker/qr-scanner.umd.min.js"></script>
+<script src="node_modules/@midmanstudio/mid-qr/worker/qr-scanner.umd.min.js"></script>
 <script type="module" src="your-app.js"></script>
 ```
 
 ```ts
-import { MidQr } from 'mid-qr';
+import { MidQr } from '@midmanstudio/mid-qr';
 
 // Initialise — pass an explicit WASM URL for CDN/GitHub Pages deployments
 const qr = await MidQr.create(new URL('/wasm/mid_qr_wasm_bg.wasm', location.origin));
@@ -249,7 +249,7 @@ git push origin nuget-v0.2.0
 ## Install from GitHub dist branch (no npm registry required)
 
 ```bash
-npm install github:MidManStudio/mid-qr#dist
+npm install github:MidManStudio/mid_qr_code_lib#dist
 ```
 
 ---

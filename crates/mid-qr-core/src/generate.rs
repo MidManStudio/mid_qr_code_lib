@@ -536,6 +536,17 @@ fn frame_geom(style: u32, has_text: bool) -> FrameGeom {
     }
 }
 
+/// Corner radius of the full-canvas rect that `render_frame_bg` draws for
+/// a given frame style, or `0.0` if that style doesn't paint a full-canvas
+/// rounded rect (square styles, border-only styles, or no frame at all).
+/// Keep this in sync with the `r` values inside `render_frame_bg`.
+fn frame_bg_radius(style: Option<u32>) -> f32 {
+    match style {
+        Some(2) | Some(4) => 22.0,
+        _ => 0.0,
+    }
+}
+
 // ═══════════════════════════════════════════════════════════════════
 //  FRAME — background / border elements (rendered BEFORE QR content)
 // ═══════════════════════════════════════════════════════════════════
@@ -830,11 +841,27 @@ fn render_svg(matrix: &[Vec<bool>], qr_w: usize, opts: &GenerateOptions) -> Resu
         svg.push_str("</defs>");
     }
 
-    // ① SVG background (light color fills everything first)
-    svg.push_str(&format!(
-        r#"<rect width="{:.3}" height="{:.3}" fill="{}"/>"#,
-        svg_w, svg_h, opts.light_color
-    ));
+    // ① SVG background (light color fills everything first).
+    //
+    // Frame styles 2 and 4 draw a full-canvas rect on top of this one with
+    // rx="22" rounded corners (see render_frame_bg). A plain square rect
+    // here doesn't get fully covered by a *rounded* rect of the same size —
+    // the four corners of this square peek out from behind the rounded
+    // frame's corners, which is the "regular box QR code visible behind the
+    // rounded one" bug. Matching this rect's radius to the frame's radius
+    // makes the two shapes pixel-identical, so nothing peeks through.
+    let bg_radius = frame_bg_radius(opts.frame.as_ref().map(|f| f.style));
+    if bg_radius > 0.0 {
+        svg.push_str(&format!(
+            r#"<rect width="{:.3}" height="{:.3}" rx="{:.3}" fill="{}"/>"#,
+            svg_w, svg_h, bg_radius, opts.light_color
+        ));
+    } else {
+        svg.push_str(&format!(
+            r#"<rect width="{:.3}" height="{:.3}" fill="{}"/>"#,
+            svg_w, svg_h, opts.light_color
+        ));
+    }
 
     // ② Frame background + inner white area (before QR so QR is on top)
     if let Some(ref frame) = opts.frame {

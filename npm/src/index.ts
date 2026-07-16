@@ -1,9 +1,9 @@
 // =============================================================================
-// mid-qr — Public API entry point
+// @midmanstudio/mid-qr — Public API entry point
 //
-// import { MidQr }          from 'mid-qr';  // combined facade (recommended)
-// import { MidQrGenerator } from 'mid-qr';  // generation + static decode only
-// import { MidQrScanner }   from 'mid-qr';  // camera scanning only
+// import { MidQr }          from '@midmanstudio/mid-qr';  // combined facade (recommended)
+// import { MidQrGenerator } from '@midmanstudio/mid-qr';  // generation + static decode only
+// import { MidQrScanner }   from '@midmanstudio/mid-qr';  // camera scanning only
 //
 // REQUIRED: load the nimiq UMD bundle before your module script:
 //   <script src="path/to/qr-scanner.umd.min.js"></script>

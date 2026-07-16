@@ -399,7 +399,8 @@ export function initControls(onChange) {
   bindColorPair('grad-c2',     'grad-c2-hex');
   bindColorPair('eye-outer',   'eye-outer-hex');
   bindColorPair('eye-inner',   'eye-inner-hex');
-  bindColorPair('frame-color', 'frame-color-hex');
+  bindColorPair('frame-color',      'frame-color-hex');
+  bindColorPair('frame-text-color', 'frame-text-color-hex');
 
   bindToggle('grad-enabled',      'grad-section');
   bindToggle('eye-color-enabled', 'eye-color-section');

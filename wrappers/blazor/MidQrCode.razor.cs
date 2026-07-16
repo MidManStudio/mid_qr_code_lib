@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
-namespace MidQr.Blazor;
+namespace MidManStudio.MidQr.Blazor;
 
 /// <summary>
 /// Blazor component that renders a QR code SVG via the mid-qr WASM library.

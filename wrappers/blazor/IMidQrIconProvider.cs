@@ -1,4 +1,4 @@
-namespace MidQr.Blazor;
+namespace MidManStudio.MidQr.Blazor;
 
 /// <summary>
 /// Optional visual element provider for the mid-qr Blazor components.
@@ -12,7 +12,7 @@ namespace MidQr.Blazor;
 /// Create an adapter in your app:
 ///
 /// <code>
-/// using MidQr.Blazor;
+/// using MidManStudio.MidQr.Blazor;
 /// using YourApp.Services.VisualElements;
 /// using YourApp.Domain.Enums;
 ///

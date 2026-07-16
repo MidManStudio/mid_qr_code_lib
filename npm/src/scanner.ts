@@ -63,21 +63,35 @@ export class MidQrScanner {
 
     const cameras = await QrScanner.listCameras(true).catch(() => []);
 
-    const preferred   = options?.preferredCamera ?? 'environment';
-    let   startCamera = preferred;
+    const preferred = options?.preferredCamera ?? 'environment';
 
-    // If a specific deviceId is passed, verify it exists
-    if (preferred !== 'environment' && preferred !== 'user') {
-      const found = cameras.find(c => c.id === preferred);
-      startCamera = found?.id ?? 'environment';
-    }
+    // Resolve `preferred` ('environment' | 'user' | an explicit deviceId) to
+    // a real index into `cameras`, then ALWAYS start the underlying scanner
+    // with that camera's actual deviceId — never a bare facingMode string.
+    //
+    // Bug this fixes: `startCamera` used to stay as the literal string
+    // 'environment'/'user' (handed straight to the browser's facingMode
+    // constraint), while `_cameraIdx` was a *separate*, independently
+    // guessed index into `cameras`. Those two things aren't guaranteed to
+    // point at the same physical camera, so switchCamera()'s `idx + 1`
+    // could silently land back on the camera that was already running —
+    // which is exactly what "switching doesn't do anything" looks like.
+    // Resolving to a concrete deviceId up front keeps both in sync.
+    let startIdx    = 0;
+    let startCamera = preferred;
 
-    let startIdx = 0;
     if (cameras.length > 0) {
-      const envIdx = cameras.findIndex(c =>
-        /back|rear|environment/i.test(c.label)
-      );
-      if (preferred === 'environment' && envIdx >= 0) startIdx = envIdx;
+      if (preferred === 'environment' || preferred === 'user') {
+        const envIdx = cameras.findIndex(c => /back|rear|environment/i.test(c.label));
+        startIdx = preferred === 'environment'
+          ? (envIdx >= 0 ? envIdx : 0)
+          : (cameras.length - 1 - (envIdx >= 0 ? envIdx : 0));
+      } else {
+        // An explicit deviceId was passed — verify it exists
+        const found = cameras.findIndex(c => c.id === preferred);
+        startIdx = found >= 0 ? found : 0;
+      }
+      startCamera = cameras[startIdx]?.id ?? preferred;
     }
 
     const inner = new QrScanner(

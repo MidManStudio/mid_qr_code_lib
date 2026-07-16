@@ -1,4 +1,4 @@
-namespace MidQr.Blazor;
+namespace MidManStudio.MidQr.Blazor;
 
 // ── Enums ─────────────────────────────────────────────────────────────────────
 

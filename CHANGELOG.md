@@ -10,13 +10,18 @@ Versions follow [Semantic Versioning](https://semver.org/).
 ## [Unreleased]
 
 ### Added
-- 
+- `MidQrImageHelpers.ToDataUriAsync()` (Blazor) — converts an uploaded `IBrowserFile` into the base64 data-URI that `MidQrLogoOptions.Url` expects, for embedding a logo picked via `<InputFile>`
+- Hex text-input twin for the frame label text color picker (`site/index.html`), matching every other color control
 
 ### Changed
-- 
+- **Breaking (pre-release, not yet published):** npm package renamed `mid-qr` → `@midmanstudio/mid-qr`
+- Blazor C# namespace changed `MidQr.Blazor` → `MidManStudio.MidQr.Blazor` (assembly name and root namespace now match the existing NuGet `PackageId`)
+- All GitHub URLs across the repo (package manifests, docs, site) corrected from `github.com/Mid-D-Man/mid-qr` / `github.com/MidManStudio/mid-qr` to `github.com/MidManStudio/mid_qr_code_lib`
 
 ### Fixed
-- 
+- **Scanner:** `switchCamera()` could silently do nothing — the initial camera was selected by facingMode string while the tracked camera index was a separate, independently-guessed value, so the two could point at different cameras. The index is now resolved from a real device ID up front.
+- **Scanner UI:** the scan-line overlay rendered incorrectly on desktop — `.scan-frame` computed width/height independently against a non-square 4:3 parent, producing a squashed rectangle, and the scan-line animation used a hardcoded pixel offset that assumed a fixed square size. Frame is now a true square via `aspect-ratio`, and the animation uses percentage offsets.
+- **Generator:** rounded frame background styles (2 and 4) showed the square canvas background peeking out from behind the rounded corners — the base background rect was always square while the frame overlay was rounded. The base rect now matches the frame's corner radius.
 
 ### Removed
 - 
@@ -76,5 +81,5 @@ Versions follow [Semantic Versioning](https://semver.org/).
 
 ---
 
-[Unreleased]: https://github.com/MidManStudio/mid-qr/compare/v0.1.0...HEAD
-[0.1.0]: https://github.com/MidManStudio/mid-qr/releases/tag/v0.1.0
+[Unreleased]: https://github.com/MidManStudio/mid_qr_code_lib/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/MidManStudio/mid_qr_code_lib/releases/tag/v0.1.0

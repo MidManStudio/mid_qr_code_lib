@@ -1,7 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 
-namespace MidQr.Blazor;
+namespace MidManStudio.MidQr.Blazor;
 
 /// <summary>
 /// Extension methods for registering mid-qr Blazor services.

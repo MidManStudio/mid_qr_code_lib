@@ -9,8 +9,8 @@
     <TargetFrameworks>net7.0;net8.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>MidQr.Blazor</RootNamespace>
-    <AssemblyName>MidQr.Blazor</AssemblyName>
+    <RootNamespace>MidManStudio.MidQr.Blazor</RootNamespace>
+    <AssemblyName>MidManStudio.MidQr.Blazor</AssemblyName>
 
     <!-- ── NuGet identity ─────────────────────────────────────────── -->
     <PackageId>MidManStudio.MidQr.Blazor</PackageId>
@@ -30,8 +30,8 @@
       support).
     </Description>
     <PackageTags>qr;qrcode;blazor;blazor-webassembly;blazor-server;wasm;scanner;generator;mid-qr;midmanstudio</PackageTags>
-    <PackageProjectUrl>https://github.com/MidManStudio/mid-qr</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/MidManStudio/mid-qr</RepositoryUrl>
+    <PackageProjectUrl>https://github.com/MidManStudio/mid_qr_code_lib</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/MidManStudio/mid_qr_code_lib</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>

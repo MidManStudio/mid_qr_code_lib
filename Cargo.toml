@@ -10,7 +10,7 @@ version    = "0.1.0"
 edition    = "2021"
 authors    = ["MidManStudio"]
 license    = "MIT"
-repository = "https://github.com/MidManStudio/mid-qr"
+repository = "https://github.com/MidManStudio/mid_qr_code_lib"
 
 [profile.release]
 opt-level     = "s"

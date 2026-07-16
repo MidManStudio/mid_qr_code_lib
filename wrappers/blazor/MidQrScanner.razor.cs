@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Components.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.JSInterop;
 
-namespace MidQr.Blazor;
+namespace MidManStudio.MidQr.Blazor;
 
 /// <summary>
 /// Blazor QR code scanner component backed by the mid-qr JS/WASM library.

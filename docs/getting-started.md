@@ -17,7 +17,7 @@ This guide takes you from installation to a fully styled, camera-scanning QR cod
 ### 1. Install
 
 ```bash
-npm install mid-qr
+npm install @midmanstudio/mid-qr
 ```
 
 ### 2. Set up your HTML
@@ -35,7 +35,7 @@ The nimiq QR scanner must be loaded as a UMD script **before** any `<script type
   <video id="camera" autoplay muted playsinline></video>
 
   <!-- 1. nimiq UMD — MUST come first -->
-  <script src="node_modules/mid-qr/worker/qr-scanner.umd.min.js"></script>
+  <script src="node_modules/@midmanstudio/mid-qr/worker/qr-scanner.umd.min.js"></script>
 
   <!-- 2. Your app module -->
   <script type="module" src="app.js"></script>
@@ -47,10 +47,10 @@ The nimiq QR scanner must be loaded as a UMD script **before** any `<script type
 
 ```js
 // app.js
-import { MidQr } from 'mid-qr';
+import { MidQr } from '@midmanstudio/mid-qr';
 
 // Pass an explicit WASM URL — required for any non-localhost deployment
-const wasmUrl = new URL('/node_modules/mid-qr/wasm/mid_qr_wasm_bg.wasm', location.origin);
+const wasmUrl = new URL('/node_modules/@midmanstudio/mid-qr/wasm/mid_qr_wasm_bg.wasm', location.origin);
 const qr = await MidQr.create(wasmUrl);
 
 console.log('mid-qr ready, version:', qr.version);
@@ -304,7 +304,7 @@ import type {
   CameraInfo,
   MidQrStatus,
   MidQrCapabilities,
-} from 'mid-qr';
+} from '@midmanstudio/mid-qr';
 ```
 
 ---
@@ -313,5 +313,5 @@ import type {
 
 - [Full API Reference](API_REFERENCE.md) — every option, method, and type
 - [Architecture](docs/architecture.md) — how the three decode paths work
-- [Live demo](https://midmanstudio.github.io/mid-qr/) — interactive playground
-- [GitHub](https://github.com/MidManStudio/mid-qr) — source code and issues
+- [Live demo](https://midmanstudio.github.io/mid_qr_code_lib/) — interactive playground
+- [GitHub](https://github.com/MidManStudio/mid_qr_code_lib) — source code and issues

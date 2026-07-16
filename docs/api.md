@@ -1,6 +1,6 @@
 # mid-qr API Reference
 
-Complete API catalog for the `mid-qr` npm package (`MidQr`, `MidQrGenerator`, `MidQrScanner`) and the `MidManStudio.MidQr.Blazor` NuGet package.
+Complete API catalog for the `@midmanstudio/mid-qr` npm package (`MidQr`, `MidQrGenerator`, `MidQrScanner`) and the `MidManStudio.MidQr.Blazor` NuGet package.
 
 ---
 
@@ -37,7 +37,7 @@ Complete API catalog for the `mid-qr` npm package (`MidQr`, `MidQrGenerator`, `M
 ### Installation
 
 ```bash
-npm install mid-qr
+npm install @midmanstudio/mid-qr
 ```
 
 ```html
@@ -176,7 +176,7 @@ Diagnostic snapshot — see [MidQrStatus](#midqrstatus).
 Generation-only class. Use this when you do not need the camera scanner to keep bundle size minimal.
 
 ```ts
-import { MidQrGenerator } from 'mid-qr';
+import { MidQrGenerator } from '@midmanstudio/mid-qr';
 
 const gen = await MidQrGenerator.create(wasmUrl);
 const svg = gen.generate({ data: '...', moduleStyle: 'dot' });
@@ -191,7 +191,7 @@ Exposes the same `generate()`, `generateSimple()`, `decode()`, `getCapabilities(
 Real-time camera scanner. Returned by `MidQr.createScanner()` or created directly.
 
 ```ts
-import { MidQrScanner } from 'mid-qr';
+import { MidQrScanner } from '@midmanstudio/mid-qr';
 
 const scanner = await MidQrScanner.create(videoEl, onDecode, options, onError);
 await scanner.start();
