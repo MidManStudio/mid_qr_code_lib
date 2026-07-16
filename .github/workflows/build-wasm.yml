@@ -195,7 +195,7 @@ jobs:
 
           ## npm install from GitHub dist branch
           ```bash
-          npm install github:Mid-D-Man/mid-qr#dist
+          npm install github:MidManStudio/mid_qr_code_lib#dist
           ```
 
           ## Blazor
