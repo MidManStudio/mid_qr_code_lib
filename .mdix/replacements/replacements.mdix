@@ -3,14 +3,8 @@
 @CONFIG(
   version    -> "1.0.0"
   author     -> "MidManStudio"
-  features   -> "quickfuncs,data"
+  features   -> "data"
   debug_mode -> "off"
-)
-
-@QUICKFUNCS(
-  ~target<object>(_name, _path) {
-    return { name = _name, path = _path }
-  }
 )
 
 @DATA(
@@ -18,14 +12,4 @@
 
   ignore::
     "NOTES.md"
-
-  // These three sit at the archive's own top level (not in a subdirectory),
-  // so they'd otherwise resolve by basename search across the WHOLE repo,
-  // not by direct path. Cargo.toml genuinely collides (root + 2 crates).
-  // README.md / CHANGELOG.md happen to be unique right now, but pinning all
-  // three explicitly means none of this depends on that staying true.
-  overrides::
-    target("Cargo.toml",   "Cargo.toml")
-    target("README.md",    "README.md")
-    target("CHANGELOG.md", "CHANGELOG.md")
 )
