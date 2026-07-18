@@ -22,6 +22,7 @@ interface WasmModule {
   default(input?: unknown): Promise<unknown>;
   // Core generation
   generate(options: object): string;
+  generateMsx(options: object): string;
   generateSimple(
     data:       string,
     size:       number,
@@ -112,30 +113,7 @@ export class MidQrGenerator {
     }
 
     try {
-      return this._wasm.generate({
-        data:              options.data,
-        size:              options.size              ?? 300,
-        darkColor:         options.darkColor         ?? '#000000',
-        lightColor:        options.lightColor        ?? '#FFFFFF',
-        errorLevel:        options.errorLevel        ?? 'M',
-        margin:            options.margin            ?? true,
-        // Optional blocks — send undefined rather than null so serde
-        // sees a missing field (= None) instead of a null (= type error).
-        gradient:          options.gradient          ?? undefined,
-        logo:              options.logo              ?? undefined,
-        moduleStyle:       options.moduleStyle       ?? undefined,
-        cornerSquareStyle: options.cornerSquareStyle ?? undefined,
-        cornerDotStyle:    options.cornerDotStyle    ?? undefined,
-        eyeColor:          options.eyeColor          ?? undefined,
-        frame:             options.frame
-          ? {
-              style:     options.frame.style,
-              color:     options.frame.color,
-              text:      options.frame.text      ?? 'Scan Me!',
-              textColor: options.frame.textColor ?? '#ffffff',
-            }
-          : undefined,
-      });
+      return this._wasm.generate(this._buildWasmOptions(options));
     } catch (e) {
       if (isWasmTrap(e)) {
         throw new Error(
@@ -144,6 +122,63 @@ export class MidQrGenerator {
       }
       throw e;
     }
+  }
+
+  /**
+   * Same options as `generate()`, but returns MSX (DixScript source text)
+   * instead of an SVG string.
+   *
+   * Not supported yet: a `logo` in `options` throws rather than silently
+   * dropping it — MSX v0.1 has no raster/image element. Drop the logo, or
+   * use `generate()` for SVG output instead.
+   *
+   * ```ts
+   * const msx = qr.generateMsx({ data: 'https://example.com', size: 300 });
+   * ```
+   */
+  generateMsx(options: GenerateOptions): string {
+    if (!options.data || options.data.trim().length === 0) {
+      throw new Error('mid-qr: data cannot be empty');
+    }
+
+    try {
+      return this._wasm.generateMsx(this._buildWasmOptions(options));
+    } catch (e) {
+      if (isWasmTrap(e)) {
+        throw new Error(
+          'mid-qr: generation failed — data may be too long for the chosen error level',
+        );
+      }
+      throw e;
+    }
+  }
+
+  /** Shared options translation used by both generate() and generateMsx(). */
+  private _buildWasmOptions(options: GenerateOptions): object {
+    return {
+      data:              options.data,
+      size:              options.size              ?? 300,
+      darkColor:         options.darkColor         ?? '#000000',
+      lightColor:        options.lightColor        ?? '#FFFFFF',
+      errorLevel:        options.errorLevel        ?? 'M',
+      margin:            options.margin            ?? true,
+      // Optional blocks — send undefined rather than null so serde
+      // sees a missing field (= None) instead of a null (= type error).
+      gradient:          options.gradient          ?? undefined,
+      logo:              options.logo              ?? undefined,
+      moduleStyle:       options.moduleStyle       ?? undefined,
+      cornerSquareStyle: options.cornerSquareStyle ?? undefined,
+      cornerDotStyle:    options.cornerDotStyle    ?? undefined,
+      eyeColor:          options.eyeColor          ?? undefined,
+      frame:             options.frame
+        ? {
+            style:     options.frame.style,
+            color:     options.frame.color,
+            text:      options.frame.text      ?? 'Scan Me!',
+            textColor: options.frame.textColor ?? '#ffffff',
+          }
+        : undefined,
+    };
   }
 
   /**

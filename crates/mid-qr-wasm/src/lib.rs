@@ -6,6 +6,7 @@ use serde::Deserialize;
 #[cfg(feature = "generate")]
 use mid_qr_core::generate::{
     generate as core_generate,
+    generate_msx as core_generate_msx,
     ErrorLevel, GenerateOptions,
     GradientDirection, GradientOptions,
     LogoBorderOptions, LogoOptions,
@@ -175,6 +176,15 @@ pub fn generate(options: JsValue) -> Result<String, JsValue> {
         serde_wasm_bindgen::from_value(options).map_err(deser_err)?;
     let core_opts = build_core_opts(js_opts);
     core_generate(&core_opts).map_err(qr_err)
+}
+
+#[cfg(feature = "generate")]
+#[wasm_bindgen(js_name = "generateMsx")]
+pub fn generate_msx(options: JsValue) -> Result<String, JsValue> {
+    let js_opts: JsGenerateOptions =
+        serde_wasm_bindgen::from_value(options).map_err(deser_err)?;
+    let core_opts = build_core_opts(js_opts);
+    core_generate_msx(&core_opts).map_err(qr_err)
 }
 
 #[cfg(feature = "generate")]

@@ -34,7 +34,7 @@ async function doGenerate() {
 
   try {
     const svg = generateQr(data, options);
-    showQr(svg);
+    showQr(svg, data, options);
     enableActions(true);
 
     const label = options.frame ? ' with frame' : '';

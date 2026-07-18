@@ -150,9 +150,24 @@ export class MidQrScanner {
   async switchCamera(): Promise<void> {
     if (this._cameras.length <= 1) return;
     const wasScanning = this._scanning;
-    if (wasScanning) this._inner.stop();
+
     this._cameraIdx = (this._cameraIdx + 1) % this._cameras.length;
-    await this._inner.setCamera(this._cameras[this._cameraIdx].id);
+    const nextId = this._cameras[this._cameraIdx].id;
+
+    if (wasScanning) {
+      this._inner.stop();
+      // The underlying library's setCamera() does a forced, zero-delay
+      // pause before requesting the next stream (it explicitly skips the
+      // 300ms grace period its own non-forced pause path uses elsewhere).
+      // On some mobile browsers, requesting a new camera immediately after
+      // stopping the last one can silently come back with the SAME
+      // physical camera — the hardware hasn't released it yet. This looks
+      // exactly like "the switch button does nothing." A short delay here
+      // gives it time to actually let go before we ask for the next one.
+      await new Promise(resolve => setTimeout(resolve, 250));
+    }
+
+    await this._inner.setCamera(nextId);
     if (wasScanning) await this._inner.start();
   }
 
@@ -160,8 +175,13 @@ export class MidQrScanner {
     const idx = this._cameras.findIndex(c => c.id === deviceId);
     if (idx === -1) throw new Error(`mid-qr: camera '${deviceId}' not found`);
     const wasScanning = this._scanning;
-    if (wasScanning) this._inner.stop();
     this._cameraIdx = idx;
+
+    if (wasScanning) {
+      this._inner.stop();
+      await new Promise(resolve => setTimeout(resolve, 250)); // see switchCamera()
+    }
+
     await this._inner.setCamera(deviceId);
     if (wasScanning) await this._inner.start();
   }

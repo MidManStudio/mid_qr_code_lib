@@ -39,6 +39,17 @@ export function generateQr(data, options) {
   return _qr.generate({ data, ...options });
 }
 
+/**
+ * Same as generateQr(), but returns MSX (DixScript source text) instead
+ * of SVG. Throws if options.logo is set — MSX v0.1 has no raster/image
+ * element yet.
+ */
+export function generateQrMsx(data, options) {
+  if (!_qr) throw new Error('QR engine not initialised — call initEngine() first');
+  if (!data || !data.trim()) throw new Error('Data is empty');
+  return _qr.generateMsx({ data, ...options });
+}
+
 // ── Capabilities ──────────────────────────────────────────────────────────────
 
 export function getCapabilities() {

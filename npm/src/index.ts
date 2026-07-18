@@ -130,6 +130,15 @@ export class MidQr {
   }
 
   /**
+   * Same as `generate()`, but returns MSX (DixScript source text) instead
+   * of SVG. Throws if `options.logo` is set — MSX v0.1 has no raster/image
+   * element yet.
+   */
+  generateMsx(options: GenerateOptions): string {
+    return this._gen.generateMsx(options);
+  }
+
+  /**
    * Quick-generate a plain QR code with no options object.
    * Dark/light colours default to black on white.
    */

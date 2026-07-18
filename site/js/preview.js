@@ -25,10 +25,14 @@ export function setLoading(active) {
 
 // ── QR display ────────────────────────────────────────────────────────────────
 
-let _currentSvg = null;
+let _currentSvg     = null;
+let _currentData    = null;
+let _currentOptions = null;
 
-export function showQr(svgString) {
-  _currentSvg = svgString;
+export function showQr(svgString, data, options) {
+  _currentSvg     = svgString;
+  _currentData    = data    ?? null;
+  _currentOptions = options ?? null;
 
   const output = el('qr-output');
   const empty  = el('qr-empty');
@@ -52,7 +56,9 @@ export function showQr(svgString) {
 }
 
 export function showEmpty() {
-  _currentSvg = null;
+  _currentSvg     = null;
+  _currentData    = null;
+  _currentOptions = null;
   const output = el('qr-output');
   if (output) {
     output.innerHTML = `
@@ -81,6 +87,8 @@ export function showEmpty() {
 }
 
 export function getCurrentSvg() { return _currentSvg; }
+export function getCurrentData() { return _currentData; }
+export function getCurrentOptions() { return _currentOptions; }
 
 // ── Status bar ────────────────────────────────────────────────────────────────
 

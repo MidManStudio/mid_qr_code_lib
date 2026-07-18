@@ -10,6 +10,9 @@ pub mod error;
 #[cfg(feature = "generate")]
 pub mod generate;
 
+#[cfg(feature = "generate")]
+pub mod msx;
+
 #[cfg(feature = "decode")]
 pub mod decode;
 
@@ -19,8 +22,9 @@ pub use error::QrError;
 
 #[cfg(feature = "generate")]
 pub use generate::{
-    // core fn
+    // core fns
     generate,
+    generate_msx,
     // options struct
     GenerateOptions,
     // enums — error level

@@ -258,7 +258,7 @@ fn validate_color(color: &str) -> Result<(), QrError> {
 // ═══════════════════════════════════════════════════════════════════
 
 /// Rounded rectangle as an SVG path string (clockwise, arc corners).
-fn rounded_rect_path(x: f32, y: f32, w: f32, h: f32, r: f32) -> String {
+pub(crate) fn rounded_rect_path(x: f32, y: f32, w: f32, h: f32, r: f32) -> String {
     let r = r.min(w * 0.499).min(h * 0.499);
     format!(
         "M{:.3} {:.3}h{:.3}a{:.3} {:.3} 0 0 1 {:.3} {:.3}\
@@ -274,7 +274,7 @@ fn rounded_rect_path(x: f32, y: f32, w: f32, h: f32, r: f32) -> String {
 }
 
 /// Circle as a two-arc SVG path (works inside compound evenodd paths).
-fn circle_path(cx: f32, cy: f32, r: f32) -> String {
+pub(crate) fn circle_path(cx: f32, cy: f32, r: f32) -> String {
     format!(
         "M{:.3} {:.3}a{:.3} {:.3} 0 1 0 {:.3} 0a{:.3} {:.3} 0 1 0 {:.3} 0Z",
         cx - r, cy,
@@ -289,7 +289,7 @@ fn circle_path(cx: f32, cy: f32, r: f32) -> String {
 
 /// SVG path fragment for a single dark data module at pixel position (x, y),
 /// module size `m`, with the chosen style.
-fn module_path(x: f32, y: f32, m: f32, style: ModuleStyle) -> String {
+pub(crate) fn module_path(x: f32, y: f32, m: f32, style: ModuleStyle) -> String {
     match style {
         ModuleStyle::Square => {
             format!("M{:.3} {:.3}H{:.3}V{:.3}H{:.3}Z", x, y, x + m, y + m, x)
@@ -512,13 +512,13 @@ fn build_logo_elements(
 //  FRAME — geometry helper
 // ═══════════════════════════════════════════════════════════════════
 
-struct FrameGeom {
-    pad_x:     f32,
-    pad_y_top: f32,
-    pad_y_bot: f32,
+pub(crate) struct FrameGeom {
+    pub(crate) pad_x:     f32,
+    pub(crate) pad_y_top: f32,
+    pub(crate) pad_y_bot: f32,
 }
 
-fn frame_geom(style: u32, has_text: bool) -> FrameGeom {
+pub(crate) fn frame_geom(style: u32, has_text: bool) -> FrameGeom {
     let base = 20.0_f32;
     let th   = if has_text { 52.0_f32 } else { base };
 
@@ -540,7 +540,7 @@ fn frame_geom(style: u32, has_text: bool) -> FrameGeom {
 /// a given frame style, or `0.0` if that style doesn't paint a full-canvas
 /// rounded rect (square styles, border-only styles, or no frame at all).
 /// Keep this in sync with the `r` values inside `render_frame_bg`.
-fn frame_bg_radius(style: Option<u32>) -> f32 {
+pub(crate) fn frame_bg_radius(style: Option<u32>) -> f32 {
     match style {
         Some(2) | Some(4) => 22.0,
         _ => 0.0,
@@ -726,7 +726,7 @@ fn render_frame_text(
 /// Returns `true` if (row, col) falls inside one of the three finder
 /// patterns (eyes). These modules are rendered separately with corner styles.
 #[inline]
-fn is_in_finder(row: usize, col: usize, qr_w: usize) -> bool {
+pub(crate) fn is_in_finder(row: usize, col: usize, qr_w: usize) -> bool {
     // top-left eye
     (row < 7 && col < 7)
     // top-right eye
@@ -740,6 +740,23 @@ fn is_in_finder(row: usize, col: usize, qr_w: usize) -> bool {
 // ═══════════════════════════════════════════════════════════════════
 
 pub fn generate(opts: &GenerateOptions) -> Result<String, QrError> {
+    let (matrix, qr_w) = validate_and_encode(opts)?;
+    render_svg(&matrix, qr_w, opts)
+}
+
+/// Same QR data as `generate()`, but rendered as MSX (DixScript source)
+/// instead of SVG. See `msx::render_msx` doc comment for what's not
+/// supported yet (logo, frame text letter-spacing) and the gradient
+/// coordinate-space assumption.
+pub fn generate_msx(opts: &GenerateOptions) -> Result<String, QrError> {
+    let (matrix, qr_w) = validate_and_encode(opts)?;
+    crate::msx::render_msx(&matrix, qr_w, opts)
+}
+
+/// Shared validation + QR encoding step used by every output format.
+/// Keeping this in one place means SVG and MSX (and anything added later)
+/// can't quietly drift apart on what counts as valid input.
+pub(crate) fn validate_and_encode(opts: &GenerateOptions) -> Result<(Vec<Vec<bool>>, usize), QrError> {
     if opts.data.is_empty() { return Err(QrError::EmptyData); }
     validate_size(opts.size)?;
     validate_color(&opts.dark_color)?;
@@ -765,7 +782,7 @@ pub fn generate(opts: &GenerateOptions) -> Result<String, QrError> {
         .map(|row| row.iter().map(|c| *c == QrColor::Dark).collect())
         .collect();
 
-    render_svg(&matrix, qr_w, opts)
+    Ok((matrix, qr_w))
 }
 
 fn render_svg(matrix: &[Vec<bool>], qr_w: usize, opts: &GenerateOptions) -> Result<String, QrError> {

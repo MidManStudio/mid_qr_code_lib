@@ -22,6 +22,12 @@ pub enum QrError {
 
     /// Something went wrong while manipulating the generated SVG string.
     SvgError(String),
+
+    /// The requested output format can't represent a feature the options
+    /// asked for (e.g. MSX v0.1 has no raster/image element, so a logo
+    /// can't be represented — rather than silently drop it, this is
+    /// surfaced as an explicit error).
+    UnsupportedFeature(String),
 }
 
 impl fmt::Display for QrError {
@@ -35,6 +41,7 @@ impl fmt::Display for QrError {
             QrError::EncodingError(e) => write!(f, "QR encoding failed: {e}"),
             QrError::DecodeError(e) => write!(f, "QR decode failed: {e}"),
             QrError::SvgError(e) => write!(f, "SVG manipulation error: {e}"),
+            QrError::UnsupportedFeature(e) => write!(f, "Unsupported for this output format: {e}"),
         }
     }
 }

@@ -416,6 +416,35 @@
 }
 .hint-callout strong { color: var(--c-text-0); font-weight: 600; }
 
+/* ── Capacity meter (image content type) ──────────────── */
+
+.capacity-meter {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  margin: var(--sp-2) 0;
+}
+.capacity-meter__bar {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+.capacity-meter__fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 3px;
+  background: var(--c-success);
+  transition: width 0.2s ease, background-color 0.2s ease;
+}
+.capacity-meter__fill.is-warning { background: var(--c-warning); }
+.capacity-meter__fill.is-over    { background: var(--c-error); }
+.capacity-meter__label {
+  font-size: var(--text-xs);
+  color: var(--c-text-2);
+}
+.capacity-meter__label.is-over { color: var(--c-error); font-weight: 600; }
+
 /* ── Collapsible sections ─────────────────────────────── */
 
 .collapsible {

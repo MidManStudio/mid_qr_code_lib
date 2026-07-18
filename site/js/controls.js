@@ -267,11 +267,11 @@ function initTabs() {
 
 function initContentType() {
   const grid     = document.querySelector('.type-grid');
-  // All 14 content types — must match data-type attrs and fields-{type} IDs in HTML
+  // All 15 content types — must match data-type attrs and fields-{type} IDs in HTML
   const allTypes = [
     'url', 'text', 'wifi', 'email', 'phone', 'sms',
     'vcard', 'whatsapp', 'instagram', 'facebook',
-    'linkedin', 'telegram', 'youtube', 'app',
+    'linkedin', 'telegram', 'youtube', 'app', 'image',
   ];
   if (!grid) return;
 
@@ -360,6 +360,110 @@ function initLogoUpload() {
   bindToggle('logo-border-enabled', 'logo-border-section');
 }
 
+// ── Image content type (image AS the encoded payload) ──────────────────────────
+
+// Standard QR spec (ISO/IEC 18004) byte-mode capacity at Version 40, the
+// largest QR size — i.e. the absolute ceiling regardless of the size chosen
+// in the Style tab. Real usable capacity is smaller once base64's ~33%
+// overhead is applied to the source file.
+const QR_MAX_BYTES = { L: 2953, M: 2331, Q: 1663, H: 1273 };
+
+let _imageContentDataUri = null;
+
+function currentEcLevel() {
+  return document.querySelector('.pill.is-active[data-group="ec"]')?.dataset.value ?? 'M';
+}
+
+function updateImageCapacityMeter() {
+  const fill  = document.getElementById('image-content-capacity-fill');
+  const label = document.getElementById('image-content-capacity-label');
+  if (!fill || !label) return;
+
+  if (!_imageContentDataUri) {
+    fill.style.width = '0%';
+    fill.classList.remove('is-warning', 'is-over');
+    label.textContent = 'No image selected';
+    label.classList.remove('is-over');
+    return;
+  }
+
+  // Measure the TRUE final payload, not just the raw image's own base64.
+  // Locked-payload mode wraps this in an extra JSON+base64 envelope and
+  // forces EC level to H — both change the real budget, so read them the
+  // same way getData()/getOptions() do rather than re-deriving separately.
+  const finalPayload = getData();
+  const bytes = new TextEncoder().encode(finalPayload).length;
+  const lockedEnabled = g('locked-enabled')?.checked;
+  const ec    = lockedEnabled ? 'H' : currentEcLevel();
+  const max   = QR_MAX_BYTES[ec] ?? QR_MAX_BYTES.M;
+  const pct   = Math.min(100, (bytes / max) * 100);
+  const over  = bytes > max;
+
+  fill.style.width = `${pct}%`;
+  fill.classList.toggle('is-warning', pct >= 70 && !over);
+  fill.classList.toggle('is-over', over);
+
+  const fmt = n => n < 1024 ? `${n} B` : `${(n / 1024).toFixed(1)} KB`;
+  const lockedNote = lockedEnabled ? ' (locked payload adds overhead + forces EC H)' : '';
+  label.textContent = over
+    ? `${fmt(bytes)} exceeds the ${fmt(max)} max at EC level ${ec} — won't generate${lockedNote}`
+    : `${fmt(bytes)} / ${fmt(max)} max at EC level ${ec}${lockedNote}`;
+  label.classList.toggle('is-over', over);
+}
+
+function initImageContentUpload() {
+  const zone   = document.getElementById('image-content-zone');
+  const input  = document.getElementById('image-content-file');
+  const opts   = document.getElementById('image-content-opts');
+  const thumb  = document.getElementById('image-content-thumb');
+  const fname  = document.getElementById('image-content-filename');
+  const remove = document.getElementById('image-content-remove');
+
+  if (!zone || !input) return;
+
+  function loadFile(file) {
+    if (!file || !file.type.startsWith('image/')) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      _imageContentDataUri = e.target.result;
+      if (thumb) thumb.src = _imageContentDataUri;
+      if (fname) fname.textContent = file.name;
+      zone?.classList.add('is-hidden');
+      opts?.classList.remove('is-hidden');
+      updateImageCapacityMeter();
+    };
+    reader.readAsDataURL(file);
+  }
+
+  input.addEventListener('change', () => loadFile(input.files[0]));
+  zone.addEventListener('dragover',  e => { e.preventDefault(); zone.classList.add('is-dragover'); });
+  zone.addEventListener('dragleave', () => zone.classList.remove('is-dragover'));
+  zone.addEventListener('drop', e => {
+    e.preventDefault();
+    zone.classList.remove('is-dragover');
+    loadFile(e.dataTransfer.files[0]);
+  });
+
+  remove?.addEventListener('click', () => {
+    _imageContentDataUri = null;
+    input.value = '';
+    if (thumb) thumb.src = '';
+    opts?.classList.add('is-hidden');
+    zone?.classList.remove('is-hidden');
+    updateImageCapacityMeter();
+  });
+
+  // EC level affects max capacity — re-check whenever it changes.
+  document.querySelectorAll('.pill[data-group="ec"]').forEach(p =>
+    p.addEventListener('click', updateImageCapacityMeter)
+  );
+
+  // Locked-payload mode changes both the effective EC level and adds
+  // wrapping overhead — re-check whenever either of those change too.
+  document.getElementById('locked-enabled')?.addEventListener('change', updateImageCapacityMeter);
+  document.getElementById('locked-redirect')?.addEventListener('input', updateImageCapacityMeter);
+}
+
 // ── Section divider style ─────────────────────────────────────────────────────
 
 function injectDividerStyle() {
@@ -417,6 +521,7 @@ export function initControls(onChange) {
   }
 
   initLogoUpload();
+  initImageContentUpload();
 
   if (typeof onChange === 'function') {
     document.getElementById('workspace')?.addEventListener('input', onChange);
@@ -548,6 +653,10 @@ function buildRawData() {
       const url = gVal('app-url').trim();
       return url || 'https://apps.apple.com';
     }
+
+    case 'image':
+      if (!_imageContentDataUri) throw new Error('Select an image to encode first.');
+      return _imageContentDataUri;
 
     default:
       return gVal('input-url').trim() || 'https://example.com';

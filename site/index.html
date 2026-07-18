@@ -311,6 +311,16 @@
                   App
                 </button>
 
+                <button class="type-btn" data-type="image">
+                  <svg class="type-btn__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/>
+                    <circle cx="5.5" cy="6" r="1.1" fill="currentColor" stroke="none"/>
+                    <path d="M2 11.5l3.5-3.5 2.5 2.5 2-2L14 12"/>
+                  </svg>
+                  Image
+                </button>
+
               </div><!-- /type-grid -->
             </div>
 
@@ -542,6 +552,68 @@
                   Paste either an Apple App Store or Google Play Store link.
                   For both platforms, use a <strong>universal link service</strong>
                   (e.g. linktr.ee) in the URL field instead.
+                </div>
+              </div>
+            </div>
+
+            <div id="fields-image" class="is-hidden">
+              <div class="field-block">
+                <span class="field-label">Image to encode</span>
+
+                <div class="upload-zone" id="image-content-zone"
+                     role="button" tabindex="0"
+                     aria-label="Upload image to encode — click or drag and drop">
+                  <div class="upload-zone__icon" aria-hidden="true">
+                    <svg viewBox="0 0 48 48" fill="none" stroke="currentColor"
+                         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <path d="M24 30V18M17 25l7-7 7 7"/>
+                      <path d="M8 36c0 2.2 1.8 4 4 4h24c2.2 0 4-1.8 4-4"/>
+                    </svg>
+                  </div>
+                  <p class="upload-zone__primary">Drop image or <span>browse files</span></p>
+                  <p class="upload-zone__hint">Tiny icons only — see capacity note below</p>
+                  <input type="file" id="image-content-file" class="upload-zone__input"
+                         accept="image/*" aria-label="Select image to encode">
+                </div>
+
+                <div class="logo-opts is-hidden" id="image-content-opts">
+                  <div class="logo-strip">
+                    <img id="image-content-thumb" src="" alt="Image preview" class="logo-thumb">
+                    <div class="logo-strip__info">
+                      <span id="image-content-filename" class="logo-filename"></span>
+                      <button class="btn btn--ghost btn--xs" id="image-content-remove">
+                        <svg viewBox="0 0 12 12" fill="none" stroke="currentColor"
+                             stroke-width="1.8" stroke-linecap="round" aria-hidden="true">
+                          <path d="M2 2l8 8M10 2L2 10"/>
+                        </svg>
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="capacity-meter" id="image-content-capacity" aria-live="polite">
+                  <div class="capacity-meter__bar">
+                    <div class="capacity-meter__fill" id="image-content-capacity-fill"></div>
+                  </div>
+                  <span class="capacity-meter__label" id="image-content-capacity-label">
+                    No image selected
+                  </span>
+                </div>
+
+                <div class="hint-callout">
+                  <svg class="hint-callout__icon" viewBox="0 0 16 16" fill="none"
+                       stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6.5"/>
+                    <path d="M8 7v4" stroke-linecap="round"/>
+                    <circle cx="8" cy="5" r=".6" fill="currentColor" stroke="none"/>
+                  </svg>
+                  This embeds the image itself as the scanned data — there's no server,
+                  so a QR code's entire capacity is a hard ceiling: about
+                  <strong>2.9 KB</strong> at error correction L, down to
+                  <strong>1.2 KB</strong> at H, before base64 overhead. That fits a
+                  small icon, not a photo. For anything bigger, host the image
+                  somewhere and use the <strong>URL</strong> content type to link to it instead.
                 </div>
               </div>
             </div>
@@ -918,6 +990,9 @@
                 </button>
                 <button class="fmt-option" data-fmt="png" role="menuitem">
                   <strong>PNG</strong><span>Raster — 2× resolution</span>
+                </button>
+                <button class="fmt-option" data-fmt="msx" role="menuitem">
+                  <strong>MSX</strong><span>Vector source — no logo support yet</span>
                 </button>
               </div>
             </div>

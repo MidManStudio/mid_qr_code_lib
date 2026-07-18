@@ -3,9 +3,10 @@
  * Handles SVG / PNG download and clipboard copy.
  */
 
-import { getCurrentSvg } from './preview.js';
+import { getCurrentSvg, getCurrentData, getCurrentOptions } from './preview.js';
+import { generateQrMsx } from './qr-engine.js';
 
-let _format = 'svg';  // 'svg' | 'png'
+let _format = 'svg';  // 'svg' | 'png' | 'msx'
 
 // ── PNG conversion ────────────────────────────────────────────────────────────
 
@@ -67,6 +68,18 @@ export async function downloadCurrent() {
   if (_format === 'svg') {
     const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
     triggerDownload(blob, getFilename('svg'));
+  } else if (_format === 'msx') {
+    try {
+      const msx = generateQrMsx(getCurrentData(), getCurrentOptions());
+      const blob = new Blob([msx], { type: 'text/plain;charset=utf-8' });
+      triggerDownload(blob, getFilename('msx'));
+    } catch (err) {
+      console.error('MSX export failed:', err);
+      const msg = /logo/i.test(err.message)
+        ? 'MSX export doesn\'t support a logo yet (no raster element in MSX v0.1). Remove the logo, or use SVG/PNG instead.'
+        : `MSX export failed: ${err.message}`;
+      alert(msg);
+    }
   } else {
     try {
       const blob = await svgToPngBlob(svg, 2);
