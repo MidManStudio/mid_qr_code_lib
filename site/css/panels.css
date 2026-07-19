@@ -79,6 +79,14 @@
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: var(--sp-2);
+  /* Explicit, not relying on the default (stretch): without this, if any
+     ancestor ends up taller than this grid's natural content height, the
+     extra space gets distributed BETWEEN rows rather than left blank
+     below them - buttons individually normal-sized, but spread far apart
+     vertically. Pinning both axes to start guarantees tight packing
+     regardless of container height. */
+  align-content: start;
+  justify-content: start;
 }
 
 .type-btn {
@@ -120,6 +128,8 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--sp-2);
+  align-content: start;
+  justify-content: start;
 }
 .style-grid--sm { grid-template-columns: repeat(3, 1fr); }
 
@@ -167,6 +177,8 @@
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: var(--sp-2);
+  align-content: start;
+  justify-content: start;
 }
 
 .frame-card {
