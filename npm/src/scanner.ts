@@ -31,7 +31,7 @@ function defaultScanRegion(video: HTMLVideoElement) {
 export class MidQrScanner {
   private readonly _inner:    QrScannerInstance;
   private readonly _video:    HTMLVideoElement;
-  private readonly _cameras:  CameraInfo[];
+  private          _cameras:  CameraInfo[] = [];
   private readonly _onDecode: OnDecodeCallback;
   private readonly _onError:  OnDecodeErrorCallback | undefined;
 
@@ -41,13 +41,11 @@ export class MidQrScanner {
   private constructor(
     inner:    QrScannerInstance,
     video:    HTMLVideoElement,
-    cameras:  CameraInfo[],
     onDecode: OnDecodeCallback,
     onError?: OnDecodeErrorCallback,
   ) {
     this._inner    = inner;
     this._video    = video;
-    this._cameras  = cameras;
     this._onDecode = onDecode;
     this._onError  = onError;
   }
@@ -61,38 +59,27 @@ export class MidQrScanner {
     // Resolve the class — throws with a clear message if UMD not loaded
     const QrScanner: QrScannerStatic = getQrScannerClass();
 
-    const cameras = await QrScanner.listCameras(true).catch(() => []);
-
-    const preferred = options?.preferredCamera ?? 'environment';
-
-    // Resolve `preferred` ('environment' | 'user' | an explicit deviceId) to
-    // a real index into `cameras`, then ALWAYS start the underlying scanner
-    // with that camera's actual deviceId — never a bare facingMode string.
+    // Deliberately NOT calling QrScanner.listCameras() here, even though
+    // an earlier version of this file did. Nimiq's own source warns
+    // against exactly that: "Call listCameras after successfully
+    // starting a QR scanner to avoid creating a temporary video stream."
+    // Calling it before any stream is active means it has to open a
+    // throwaway getUserMedia stream just to read device labels, then
+    // immediately close it — right before start() opens the REAL stream
+    // moments later. That back-to-back open/close/open of the camera
+    // hardware is exactly the kind of timing issue that's flaky on
+    // mobile (nimiq's own comment: "especially...on mobile when the
+    // camera is already in use and some browsers disallow a second
+    // stream"). On affected devices the <video> element can still appear
+    // to show *something*, while the scan loop never actually receives
+    // usable frames — which looks identical to "it's just not scanning,"
+    // silently, with no error surfaced anywhere.
     //
-    // Bug this fixes: `startCamera` used to stay as the literal string
-    // 'environment'/'user' (handed straight to the browser's facingMode
-    // constraint), while `_cameraIdx` was a *separate*, independently
-    // guessed index into `cameras`. Those two things aren't guaranteed to
-    // point at the same physical camera, so switchCamera()'s `idx + 1`
-    // could silently land back on the camera that was already running —
-    // which is exactly what "switching doesn't do anything" looks like.
-    // Resolving to a concrete deviceId up front keeps both in sync.
-    let startIdx    = 0;
-    let startCamera = preferred;
-
-    if (cameras.length > 0) {
-      if (preferred === 'environment' || preferred === 'user') {
-        const envIdx = cameras.findIndex(c => /back|rear|environment/i.test(c.label));
-        startIdx = preferred === 'environment'
-          ? (envIdx >= 0 ? envIdx : 0)
-          : (cameras.length - 1 - (envIdx >= 0 ? envIdx : 0));
-      } else {
-        // An explicit deviceId was passed — verify it exists
-        const found = cameras.findIndex(c => c.id === preferred);
-        startIdx = found >= 0 ? found : 0;
-      }
-      startCamera = cameras[startIdx]?.id ?? preferred;
-    }
+    // preferredCamera is passed straight through as the raw facingMode
+    // string or explicit deviceId; the actual camera list is resolved
+    // in start(), once a stream already exists (see the comment there
+    // for why that's the point where listCameras() becomes free).
+    const preferred = options?.preferredCamera ?? 'environment';
 
     const inner = new QrScanner(
       video,
@@ -101,7 +88,7 @@ export class MidQrScanner {
         cornerPoints: nimiqResult.cornerPoints,
       }),
       {
-        preferredCamera:           startCamera,
+        preferredCamera:           preferred,
         maxScansPerSecond:         options?.maxScansPerSecond    ?? 5,
         highlightScanRegion:       options?.highlightScanRegion  ?? false,
         highlightCodeOutline:      options?.highlightCodeOutline ?? false,
@@ -111,9 +98,7 @@ export class MidQrScanner {
       },
     );
 
-    const instance      = new MidQrScanner(inner, video, cameras, onDecode, onError);
-    instance._cameraIdx = startIdx;
-    return instance;
+    return new MidQrScanner(inner, video, onDecode, onError);
   }
 
   // ── Control ────────────────────────────────────────────────────────────────
@@ -122,10 +107,31 @@ export class MidQrScanner {
     await this._inner.start();
     this._scanning = true;
 
-    // Request higher resolution from the camera track when possible
+    // Fetch the camera list now that a stream is already active. Per
+    // nimiq's own listCameras() implementation, it only opens a temporary
+    // stream when device labels aren't already available — and with a
+    // stream already running, they are, so this resolves for free with
+    // no extra getUserMedia call. See the comment in create() for why
+    // doing this earlier (before any stream existed) was the actual bug.
+    try {
+      this._cameras = await getQrScannerClass().listCameras(true);
+    } catch {
+      this._cameras = [];
+    }
+
+    // Match the ACTUALLY running device against the fetched list, so
+    // switchCamera()'s index is grounded in reality rather than a guess
+    // made before anything had started.
     const stream = this._video.srcObject;
     if (stream instanceof MediaStream) {
       const track = stream.getVideoTracks()[0];
+      const activeId = track?.getSettings?.().deviceId;
+      if (activeId) {
+        const idx = this._cameras.findIndex(c => c.id === activeId);
+        if (idx !== -1) this._cameraIdx = idx;
+      }
+
+      // Request higher resolution from the camera track when possible
       if (track?.applyConstraints) {
         try {
           await track.applyConstraints({

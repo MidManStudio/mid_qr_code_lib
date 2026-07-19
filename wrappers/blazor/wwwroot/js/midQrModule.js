@@ -253,28 +253,20 @@ class QRScannerInstance {
   async start() {
     const QrScanner = await resolveQrScanner();
 
-    // Enumerate cameras before creating the scanner so we can choose the
-    // environment-facing one by label when preferredCamera = "environment".
-    this._cameras = await QrScanner.listCameras(true).catch(() => []);
-
-    // Determine the actual camera to start with
-    let startCamera = this._preferredCamera;
-    if (this._cameras.length > 0 &&
-        (startCamera === 'environment' || startCamera === 'user')) {
-      const envIdx = this._cameras.findIndex(
-        c => /back|rear|environment/i.test(c.label),
-      );
-      this._cameraIndex = this._preferredCamera === 'environment'
-        ? (envIdx >= 0 ? envIdx : 0)
-        : (this._cameras.length - 1 - (envIdx >= 0 ? envIdx : 0));
-      startCamera = this._cameras[this._cameraIndex]?.id ?? startCamera;
-    }
-
+    // Deliberately NOT calling QrScanner.listCameras() here. Nimiq's own
+    // source warns against it: "Call listCameras after successfully
+    // starting a QR scanner to avoid creating a temporary video stream."
+    // Doing it before any stream is active means opening a throwaway
+    // getUserMedia stream just for device labels, then closing it right
+    // before start() opens the REAL stream moments later — a back-to-back
+    // open/close/open of the camera hardware that's flaky on mobile. The
+    // camera list is now resolved AFTER start() succeeds, once a stream
+    // already exists and listCameras() gets labels for free.
     this._scanner = new QrScanner(
       this._video,
       result => this._onDecode(result),
       {
-        preferredCamera:       startCamera,
+        preferredCamera:       this._preferredCamera,
         maxScansPerSecond:     this._maxScansPerSecond,
         highlightScanRegion:   false,
         highlightCodeOutline:  false,
@@ -294,6 +286,22 @@ class QRScannerInstance {
     );
 
     await this._scanner.start();
+
+    // Now that a stream is active, fetch the camera list (free — no extra
+    // getUserMedia call, see comment above) and match the ACTUALLY running
+    // device against it so switchCamera()'s index is grounded in reality
+    // rather than a guess made before anything had started.
+    this._cameras = await QrScanner.listCameras(true).catch(() => []);
+    const stream = this._video.srcObject;
+    if (stream instanceof MediaStream) {
+      const track = stream.getVideoTracks()[0];
+      const activeId = track?.getSettings?.().deviceId;
+      if (activeId) {
+        const idx = this._cameras.findIndex(c => c.id === activeId);
+        if (idx !== -1) this._cameraIndex = idx;
+      }
+    }
+
     await this._applyQualityConstraints();
   }
 
