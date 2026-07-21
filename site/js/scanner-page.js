@@ -157,6 +157,35 @@ function escHtml(str) {
 // ── Scanner ───────────────────────────────────────────────────────────────────
 
 let _scanner  = null;
+/**
+ * Retries a dynamic import a few times with a short delay before giving up.
+ * Added specifically because `import('./mid-qr.js')` has been observed
+ * failing intermittently on mobile data connections (but never on desktop)
+ * with "error loading dynamically imported module" - a transient network
+ * hiccup during the fetch is a plausible cause, and a straightforward retry
+ * costs nothing on the (common) case where the first attempt succeeds.
+ */
+async function importWithRetry(path, attempts = 3, delayMs = 600) {
+  let lastErr;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await import(path);
+    } catch (err) {
+      lastErr = err;
+      console.warn(`Import of ${path} failed (attempt ${i + 1}/${attempts}):`, err);
+      if (i < attempts - 1) {
+        setStatus(`Retrying (${i + 2}/${attempts})…`, 'generating');
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+      }
+    }
+  }
+  throw new Error(
+    `Failed to load the scanner module after ${attempts} attempts. `
+    + `This usually means a network request was interrupted — try reloading, `
+    + `or switching networks if it keeps happening. (${lastErr?.message ?? lastErr})`,
+  );
+}
+
 let _scanning = false;
 
 async function startScanner() {
@@ -183,7 +212,7 @@ async function startScanner() {
   setStatus('Requesting camera…', 'generating');
 
   try {
-    const { MidQrScanner } = await import('./mid-qr.js');
+    const { MidQrScanner } = await importWithRetry('./mid-qr.js');
 
     _scanner = await MidQrScanner.create(
       video,
@@ -309,4 +338,4 @@ if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', boot);
 } else {
   boot();
-                    }
+      }
