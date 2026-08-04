@@ -139,7 +139,7 @@ pub fn render_msx(matrix: &[Vec<bool>], qr_w: usize, opts: &GenerateOptions) -> 
          )\n\
          \n\
          @DATA(\n\
-         \x20 scene: {{ width = {sw:.3}, height = {sh:.3}, background = \"none\" }}\n\
+         \x20 scene = {{ width = {sw:.3}, height = {sh:.3}, background = \"none\" }}\n\
          \n\
          {defs_block}\
          \x20 elements::\n\
@@ -348,6 +348,29 @@ mod tests {
         assert!(msx.contains("type = \"path\""));
     }
 
+    /// Regression test: this generator emitted `scene: { ... }` (colon)
+    /// instead of `scene = { ... }` for a while — DixScript's grammar
+    /// has no colon-assignment form at all (`=` is required for every
+    /// Tier-1 property; `:` is reserved for angle-bracket type
+    /// annotations like `name<int> = value`, not property assignment),
+    /// so every `scene:` output was a hard parse error
+    /// ("Expected '=' after assignment name 'scene'") — `msx compile`
+    /// and `msx render` both failed on it silently (no image, no error
+    /// surfaced back to whoever generated the code), which is exactly
+    /// why this slipped through: nothing in this crate's own test suite
+    /// ever parsed the generated output with a real DixScript parser
+    /// (see this module's own doc comment — "Not verified against a
+    /// real MSX renderer"). `basic_msx_has_structure` above checks for
+    /// `"@DATA("` but never for what comes right after it, so it passed
+    /// throughout.
+    #[test]
+    fn scene_property_uses_equals_not_colon() {
+        let (matrix, w) = matrix_for("https://example.com");
+        let msx = render_msx(&matrix, w, &base_opts("https://example.com")).unwrap();
+        assert!(msx.contains("scene = {"), "expected 'scene = {{' (DixScript property-assignment syntax), got: {msx}");
+        assert!(!msx.contains("scene: {"), "'scene: {{' is not valid DixScript — no colon-assignment form exists");
+    }
+
     #[test]
     fn logo_is_refused() {
         let (matrix, w) = matrix_for("test");
@@ -397,4 +420,4 @@ mod tests {
         let msx = render_msx(&matrix, w, &o).unwrap();
         assert!(msx.contains("Scan Me!"));
     }
-}
+        }
