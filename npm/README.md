@@ -38,4 +38,4 @@ APIs, is documented in the main repository:
 https://github.com/MidManStudio/mid_qr_code_lib/blob/master/docs/api.md
 ## License
 
-MIT — see [LICENSE](https://github.com/MidManStudio/mid_qr_code_lib/blob/main/LICENSE).
+MIT — see [LICENSE](https://github.com/MidManStudio/mid_qr_code_lib/blob/master/LICENSE).
