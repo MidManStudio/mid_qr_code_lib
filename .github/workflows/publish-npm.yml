@@ -1,27 +1,26 @@
-name: MidManStudio.QrCode — WASM npm publish
+name: MidManStudio.Qr — WASM npm publish
 
 # Manual only (Actions tab -> Run workflow) — requires typing "publish" in
 # the confirmation input.
 #
 # ── Before the very first run ───────────────────────────────────────────
-# If publishing a scoped package like @midmanstudio/qr-code for the first time:
-#   1. Trusted publishing is configured on the PACKAGE's settings page on
-#      npmjs.com (Package -> Settings -> Trusted Publisher).
-#   2. Initial release (v1.0.0) must be published once manually from a local
-#      machine using `npm login` and `npm publish --access public` inside npm-publish/
-#      so the package exists on npmjs.com.
-#   3. Once published, set up Trusted Publisher on npmjs.com:
+# For @midmanstudio/mid-qr:
+#   1. Trusted publishing is configured on npmjs.com under:
+#      Package Settings -> Trusted Publisher.
+#   2. Initial release (v1.0.0) must be published once manually from local:
+#      `npm login` -> `npm publish --access public` inside `npm/`.
+#   3. Trusted Publisher Config:
 #      - GitHub Actions
-#      - Org/User: "Mid-D-Man"
+#      - Owner: "MidManStudio"
 #      - Repo: "mid_qr_code_lib"
 #      - Workflow filename: "qr-npm-publish.yml"
-#   4. Subsequent releases use OIDC authentication automatically.
+#   4. Subsequent releases authenticate via OIDC automatically.
 
 on:
   workflow_dispatch:
     inputs:
       confirm:
-        description: 'Type "publish" to confirm. Bump the version in npm-publish/package.json first if this is a new release.'
+        description: 'Type "publish" to confirm. Bump version in npm/package.json first if this is a new release.'
         required: true
 
 permissions:
@@ -43,7 +42,7 @@ jobs:
             exit 1
           fi
 
-  # ── 2. Build, test, then publish ───────────────────────────────────────
+  # ── 2. Build, test, and publish ────────────────────────────────────────
   build-test-and-publish:
     runs-on: ubuntu-latest
     needs: confirm-trigger
@@ -73,68 +72,19 @@ jobs:
           fi
           wasm-pack --version
 
-      # ── Pre-flight directory & package.json validation ──────────────────
-      - name: Validate npm-publish directory and package.json
+      # ── Verify directory structure ─────────────────────────────────────
+      - name: Validate npm directory and package.json
         run: |
-          if [ ! -d "npm-publish" ]; then
-            echo "::error::Directory 'npm-publish' does not exist in repo root."
+          if [ ! -d "npm" ]; then
+            echo "::error::Directory 'npm' does not exist in repo root."
             exit 1
           fi
-          if [ ! -f "npm-publish/package.json" ]; then
-            echo "::error::File 'npm-publish/package.json' not found. Ensure package.json is committed in npm-publish/."
+          if [ ! -f "npm/package.json" ]; then
+            echo "::error::File 'npm/package.json' not found. Ensure package.json is committed in 'npm/'."
             exit 1
           fi
-          echo "Found npm-publish/package.json successfully."
+          echo "Found npm/package.json successfully."
 
-      # ── Run WASM test suite ─────────────────────────────────────────────
-      - name: Run mid_qr_code_lib WASM test suite (headless Chrome)
-        continue-on-error: true
-        run: |
-          wasm-pack test --headless --chrome 2>&1 | tee wasm-test-console.txt
-          echo "TEST_EXIT=${PIPESTATUS[0]:-$?}" >> $GITHUB_ENV
-
-      - name: Fail if WASM tests actually failed
-        if: always()
-        run: |
-          if [ "${TEST_EXIT:-0}" != "0" ]; then
-            echo "::error::WASM test suite failed — see previous log. Publish aborted."
-            exit 1
-          fi
-
-      # ── Step 1: Build bundler target for npm-publish ────────────────────
-      - name: Build WASM crate — bundler target
-        run: |
-          wasm-pack build . \
-            --target bundler \
-            --release \
-            --out-dir "$GITHUB_WORKSPACE/npm-publish/wasm-pkg" \
-            --out-name mid_qr_code_wasm
-          echo "wasm-pack bundler output:"
-          ls -lh npm-publish/wasm-pkg/
-
-      # ── Step 2: Build nodejs target for Node entry point ────────────────
-      - name: Build WASM crate — nodejs target
-        run: |
-          wasm-pack build . \
-            --target nodejs \
-            --release \
-            --out-dir "$GITHUB_WORKSPACE/npm-publish/wasm-pkg-node" \
-            --out-name mid_qr_code_wasm
-          echo "wasm-pack nodejs output:"
-          ls -lh npm-publish/wasm-pkg-node/
-
-      # ── Step 3: Build web target for GitHub Pages / web playground ──────
-      - name: Build WASM crate — web target
-        run: |
-          wasm-pack build . \
-            --target web \
-            --release \
-            --out-dir "$GITHUB_WORKSPACE/wasm-web" \
-            --out-name mid_qr_code_wasm
-          echo "wasm-pack web output:"
-          ls -lh wasm-web/
-
-      # ── Step 4: Build TypeScript wrapper ──────────────────────────────
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -148,50 +98,40 @@ jobs:
 
       - name: Install dependencies
         run: npm install
-        working-directory: npm-publish
+        working-directory: npm
 
-      - name: Build TypeScript wrapper
-        run: npm run build --if-present
-        working-directory: npm-publish
+      # ── Runs build:wasm, build:ts, and build:worker ─────────────────────
+      - name: Build package
+        run: npm run build
+        working-directory: npm
 
-      - name: Verify package contents
-        run: |
-          echo "npm-publish/ contents:"
-          ls -lh
-          echo "wasm-pkg/ (bundler) contents:"
-          ls -lh wasm-pkg/ || echo "wasm-pkg not found"
-          echo "wasm-pkg-node/ (nodejs) contents:"
-          ls -lh wasm-pkg-node/ || echo "wasm-pkg-node not found"
-        working-directory: npm-publish
-
-      - name: Run npm package tests
-        run: npm test --if-present
-        working-directory: npm-publish
+      - name: Run test suite
+        run: npm test
+        working-directory: npm
 
       - name: Upload build artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: wasm-qr-code-npm-build-${{ github.run_number }}
+          name: mid-qr-npm-build-${{ github.run_number }}
           path: |
-            npm-publish/dist/
-            npm-publish/wasm-pkg/
-            npm-publish/wasm-pkg-node/
-            wasm-web/
-            npm-publish/package.json
+            npm/dist/
+            npm/wasm/
+            npm/worker/
+            npm/package.json
           retention-days: 30
 
-      # ── Verify package dry run ──────────────────────────────────────────
+      # ── Dry Run Verification ───────────────────────────────────────────
       - name: Verify npm package (dry run)
         run: npm publish --access public --dry-run
-        working-directory: npm-publish
+        working-directory: npm
 
-      # ── Publish to npmjs.org ────────────────────────────────────────────
+      # ── Publish to npmjs.org (OIDC Trusted Publishing) ───────────────
       - name: Publish to npm
         run: npm publish --access public
-        working-directory: npm-publish
+        working-directory: npm
 
-      # ── Mirror to GitHub Packages ────────────────────────────────────────
+      # ── Mirror to GitHub Packages ──────────────────────────────────────
       - name: Compute GitHub Packages scope
         id: gh_scope
         run: |
@@ -208,9 +148,9 @@ jobs:
         continue-on-error: true
         run: |
           set -euo pipefail
-          npm pkg set name="@${{ steps.gh_scope.outputs.scope }}/mid_qr_code_lib"
+          npm pkg set name="@${{ steps.gh_scope.outputs.scope }}/mid-qr"
           npm publish
-        working-directory: npm-publish
+        working-directory: npm
         env:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -218,7 +158,7 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.gh_packages_publish.outcome }}" == "success" ]; then
-            echo "GitHub Packages mirror: published successfully."
+            echo "GitHub Packages mirror published successfully."
           else
             echo "::warning::GitHub Packages mirror publish failed — npmjs.org publish unaffected."
           fi
@@ -229,89 +169,31 @@ jobs:
         run: |
           VERSION=$(node -p "require('./package.json').version")
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Published package v$VERSION"
-        working-directory: npm-publish
+          echo "Published @midmanstudio/mid-qr v$VERSION"
+        working-directory: npm
 
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "qr-npm-v${{ steps.version.outputs.version }}" \
-            --title "mid_qr_code_lib WASM v${{ steps.version.outputs.version }}" \
-            --notes "WASM package v${{ steps.version.outputs.version }} published to npm." \
+          gh release create "v${{ steps.version.outputs.version }}" \
+            --title "@midmanstudio/mid-qr v${{ steps.version.outputs.version }}" \
+            --notes "@midmanstudio/mid-qr v${{ steps.version.outputs.version }} published to npm." \
             --target "${{ github.sha }}"
 
-  # ── 3. Deploy playground to gh-pages ─────────────────────────────────────
-  deploy-wasm-page:
-    runs-on: ubuntu-latest
-    needs: [confirm-trigger, build-test-and-publish]
-    if: always() && needs.build-test-and-publish.result == 'success'
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: wasm-qr-code-npm-build-${{ github.run_number }}
-          path: deploy/
-
-      - name: Write build metadata
-        run: |
-          cat > deploy/meta.json << EOF
-          {
-            "build":  "${{ github.run_number }}",
-            "branch": "${{ github.ref_name }}",
-            "commit": "${GITHUB_SHA:0:8}",
-            "date":   "$(date -u --iso-8601=seconds)"
-          }
-          EOF
-
-      - name: Deploy playground to gh-pages
-        run: |
-          git config --global user.name  "GitHub Actions CI"
-          git config --global user.email "ci@github.com"
-
-          BUILD_NUM=${{ github.run_number }}
-          WORK=$(mktemp -d)
-
-          if git fetch origin gh-pages:gh-pages 2>/dev/null; then
-            git worktree add "$WORK" gh-pages
-          else
-            git worktree add --orphan -b gh-pages "$WORK"
-          fi
-
-          mkdir -p "$WORK/wasm"
-
-          if [ -d "deploy/wasm-web" ]; then
-            cp deploy/wasm-web/* "$WORK/wasm/" 2>/dev/null || true
-          fi
-
-          cp deploy/meta.json "$WORK/wasm/meta.json"
-
-          cd "$WORK"
-          git add .
-          if git diff --staged --quiet; then
-            echo "Nothing new to deploy"
-            exit 0
-          fi
-          git commit -m "WASM playground — Build #${BUILD_NUM} [skip ci]"
-          git push \
-            "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" \
-            gh-pages
-
-  # ── 4. Summary ─────────────────────────────────────────────────────────
+  # ── 3. Summary ─────────────────────────────────────────────────────────
   summary:
     runs-on: ubuntu-latest
-    needs: [confirm-trigger, build-test-and-publish, deploy-wasm-page]
+    needs: [confirm-trigger, build-test-and-publish]
     if: always()
     steps:
       - name: Print summary
         run: |
           echo "============================================="
-          echo "  mid_qr_code_lib WASM — Build Summary"
+          echo "  @midmanstudio/mid-qr — Build Summary"
           echo "============================================="
           echo "Build:          #${{ github.run_number }}"
           echo "Branch:         ${{ github.ref_name }}"
           echo "Build/Publish:  ${{ needs.build-test-and-publish.result || 'skipped' }}"
-          echo "Deploy:         ${{ needs.deploy-wasm-page.result || 'skipped' }}"
+          echo ""
+          echo "npm Package: https://www.npmjs.com/package/@midmanstudio/mid-qr"
