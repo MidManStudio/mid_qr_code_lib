@@ -17,8 +17,8 @@
     }
   },
   "scripts": {
-    "build:wasm":   "wasm-pack build ../crates/mid-qr-wasm --target web --out-dir ../npm/wasm",
-    "build:ts":     "tsc && rollup -c",
+"build:wasm": "wasm-pack build ../crates/mid-qr-wasm --target web --out-dir ../../npm/wasm --out-name mid_qr_wasm",
+"build:ts":     "tsc && rollup -c",
     "build:worker": "mkdir -p worker && cp src/worker/qr-scanner.min.js src/worker/qr-scanner-worker.min.js worker/",
     "build":        "npm run build:wasm && npm run build:ts && npm run build:worker",
     "prepublishOnly": "npm run build",
