@@ -131,8 +131,10 @@ export class MidQr {
 
   /**
    * Same as `generate()`, but returns MSX (DixScript source text) instead
-   * of SVG. Throws if `options.logo` is set — MSX v0.1 has no raster/image
-   * element yet.
+   * of SVG. A `logo` embeds fine as a `data:image/...;base64,...` URI or
+   * a local/relative path — only a remote `http(s)://` logo URL throws,
+   * since MSX's `image` element has no field for that (see
+   * `MidQrGenerator.generateMsx`'s doc comment for the full detail).
    */
   generateMsx(options: GenerateOptions): string {
     return this._gen.generateMsx(options);

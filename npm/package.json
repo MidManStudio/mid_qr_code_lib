@@ -1,12 +1,12 @@
 {
   "name": "@midmanstudio/mid-qr",
-  "version": "0.1.0",
+  "version": "0.0.1",
   "description": "Unified QR code generation and scanning — Rust/WASM core, custom dot styles, gradients, logos, frames.",
   "type": "module",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
-  "files": [ "dist", "wasm", "worker" ],
+  "files": [ "dist", "wasm", "worker", "README.md", "LICENSE" ],
   "publishConfig": {
     "access": "public"
   },
@@ -17,10 +17,12 @@
     }
   },
   "scripts": {
-    "build:wasm": "wasm-pack build ../crates/mid-qr-wasm --target web --out-dir ../npm/wasm",
-    "build:ts":   "tsc && rollup -c",
-    "build":      "npm run build:wasm && npm run build:ts",
-    "test":       "vitest run"
+    "build:wasm":   "wasm-pack build ../crates/mid-qr-wasm --target web --out-dir ../npm/wasm",
+    "build:ts":     "tsc && rollup -c",
+    "build:worker": "mkdir -p worker && cp src/worker/qr-scanner.min.js src/worker/qr-scanner-worker.min.js worker/",
+    "build":        "npm run build:wasm && npm run build:ts && npm run build:worker",
+    "prepublishOnly": "npm run build",
+    "test":         "vitest run"
   },
   "keywords": [
     "qr", "qrcode", "wasm", "webassembly", "rust",

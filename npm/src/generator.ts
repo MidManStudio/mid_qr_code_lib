@@ -128,9 +128,11 @@ export class MidQrGenerator {
    * Same options as `generate()`, but returns MSX (DixScript source text)
    * instead of an SVG string.
    *
-   * Not supported yet: a `logo` in `options` throws rather than silently
-   * dropping it — MSX v0.1 has no raster/image element. Drop the logo, or
-   * use `generate()` for SVG output instead.
+   * A `logo` in `options` embeds fine as a `data:image/...;base64,...`
+   * URI or a local/relative file path. The one case that still throws is
+   * a remote `http(s)://` logo URL — MSX's `image` element has no field
+   * for that (only embedded base64 or a local path), unlike SVG's
+   * `<image href="...">`, which accepts a remote URL directly.
    *
    * ```ts
    * const msx = qr.generateMsx({ data: 'https://example.com', size: 300 });

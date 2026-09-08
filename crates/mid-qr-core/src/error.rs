@@ -24,9 +24,13 @@ pub enum QrError {
     SvgError(String),
 
     /// The requested output format can't represent a feature the options
-    /// asked for (e.g. MSX v0.1 has no raster/image element, so a logo
-    /// can't be represented — rather than silently drop it, this is
-    /// surfaced as an explicit error).
+    /// asked for. As of the MSX generator's logo-embedding fix, this is
+    /// narrower than it used to be: MSX's `image` element only has `data`
+    /// (embedded base64) or `source_ref` (a local/relative file path) —
+    /// no field for a remote `http(s)://` URL the way SVG's
+    /// `<image href="...">` accepts directly — so *that specific case*
+    /// can't be represented; rather than silently drop it, this is
+    /// surfaced as an explicit error. See `msx.rs`'s `logo_source_field`.
     UnsupportedFeature(String),
 }
 
