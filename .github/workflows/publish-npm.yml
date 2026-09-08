@@ -155,11 +155,11 @@ jobs:
 
       - name: Verify npm package (dry run)
         working-directory: npm-publish
-        run: npm publish --access public --dry-run
+        run: npm publish --access public --dry-run --ignore-scripts
 
       - name: Publish to npm
         working-directory: npm-publish
-        run: npm publish --access public
+        run: npm publish --access public --ignore-scripts
 
       - name: Tag the release in GitHub
         env:
