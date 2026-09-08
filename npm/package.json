@@ -1,6 +1,6 @@
 {
   "name": "@midmanstudio/mid-qr",
-  "version": "0.0.1",
+  "version": "1.0.0",
   "description": "Unified QR code generation and scanning — Rust/WASM core, custom dot styles, gradients, logos, frames.",
   "type": "module",
   "main": "dist/index.js",
