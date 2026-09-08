@@ -1,77 +1,30 @@
 name: Publish to npm
 
-# ── OIDC trusted publishing, not NPM_TOKEN ──────────────────────────────
-# npm permanently revoked all classic tokens on December 9, 2025, and is
-# on a published glide path to remove token-based direct-publish
-# entirely by January 2027 — confirmed directly against npm's own docs
-# and a real reported E403 on a correctly-configured "bypass 2FA"
-# granular token. This mirrors the fix DixScript-Rust's
-# wasm-npm-publish.yml already made for @midmanstudio/mdix: no
-# NODE_AUTH_TOKEN / NPM_TOKEN secret, `permissions: id-token: write`,
-# and npm CLI >= 11.5.1 (OIDC's minimum) via an explicit
-# `npm install -g npm@latest` step, since setup-node's bundled npm isn't
-# reliably recent enough on its own.
-#
-# ── One-time bootstrap this depends on ──────────────────────────────────
-# OIDC trusted publishing can't perform a package's FIRST publish — npm
-# requires the package to already exist before a Trusted Publisher can be
-# configured on its Settings page. @midmanstudio/mid-qr doesn't exist on
-# the registry yet (confirmed directly: registry.npmjs.org returns 404
-# for it, vs. a real 200 with version history for @midmanstudio/mdix).
-# So: publish an initial 0.0.1 manually first (real `npm login`, real
-# 2FA, from any machine with npm — Termux included), THEN configure
-# Trusted Publisher on npmjs.com (Package -> Settings -> Trusted
-# Publisher -> GitHub Actions, org "MidManStudio", repo
-# "mid_qr_code_lib", workflow "publish-npm.yml"), and only then does this
-# workflow's OIDC publish start working for v1.0.0 onward. Until that
-# bootstrap is done, this workflow's `publish` job will fail — that's
-# expected, not a bug in this file.
-#
-# If an NPM_TOKEN secret still exists in this repo's settings, remove it
-# once OIDC is confirmed working — a leftover token can make npm try
-# classic auth instead of OIDC and fail even when Trusted Publisher is
-# configured correctly.
+# ── OIDC trusted publishing ─────────────────────────────────────────────
+# This workflow runs manually. It reads the version from npm/package.json,
+# builds the Rust/WASM/TS code, publishes it to npm via OIDC Trusted 
+# Publishing, and then automatically pushes a matching Git tag to GitHub.
 
 on:
-  push:
-    tags:
-      - 'v[0-9]*'
+  workflow_dispatch:
 
 jobs:
-  guard:
-    runs-on: ubuntu-latest
-    outputs:
-      version: ${{ steps.ver.outputs.version }}
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Extract version from tag
-        id: ver
-        run: |
-          TAG="${GITHUB_REF_NAME}"
-          VERSION="${TAG#v}"
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Publishing: $VERSION"
-
-      - name: Verify npm/package.json version matches tag
-        run: |
-          PKG=$(node -p "require('./npm/package.json').version")
-          TAG="${{ steps.ver.outputs.version }}"
-          if [ "$PKG" != "$TAG" ]; then
-            echo "::error::npm/package.json version ($PKG) != tag ($TAG)"
-            exit 1
-          fi
-          echo "version match: $PKG"
-
   build:
-    needs: guard
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    outputs:
+      version: ${{ steps.get_ver.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Extract version from package.json
+        id: get_ver
+        run: |
+          VERSION=$(node -p "require('./npm/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Preparing build for version: $VERSION"
 
       - name: Install Rust stable
         uses: dtolnay/rust-toolchain@stable
@@ -131,7 +84,7 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      - name: Install and build (wasm already built above, so build:ts + build:worker only)
+      - name: Install and build
         working-directory: npm
         run: |
           npm install
@@ -162,22 +115,22 @@ jobs:
           retention-days: 1
 
   publish:
-    needs: [ guard, build ]
+    needs: build
     runs-on: ubuntu-latest
     permissions:
-      contents: read
-      id-token: write   # required for OIDC trusted publishing
+      contents: write   # Required to push the git tag back to the repo
+      id-token: write   # Required for OIDC trusted publishing
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
-      # Trusted publishing needs npm >= 11.5.1; the npm bundled with
-      # setup-node's Node 20 isn't reliably that recent on its own —
-      # same fix DixScript-Rust's wasm-npm-publish.yml already made.
       - name: Ensure npm supports OIDC trusted publishing
         run: |
           npm install -g npm@latest
@@ -194,20 +147,20 @@ jobs:
           echo "Publish contents:"
           find npm-publish -type f | sort
 
-      # Packages the tarball exactly as it would be uploaded and reports
-      # exactly what would go in it, without touching the registry.
       - name: Verify npm package (dry run)
         working-directory: npm-publish
         run: npm publish --access public --dry-run
 
-      # No NODE_AUTH_TOKEN / NPM_TOKEN — OIDC trusted publishing. npm CLI
-      # detects the GitHub Actions OIDC environment automatically and
-      # authenticates against the Trusted Publisher configured on this
-      # package's npmjs.com settings page (see the bootstrap note at the
-      # top of this file — that page, and this working at all, both
-      # depend on 0.0.1 already having been published manually once).
-      # Provenance attestations are generated automatically; no
-      # --provenance flag needed.
       - name: Publish to npm
         working-directory: npm-publish
-        run: npm publish --access public
+        run: npm publish --access public 
+
+      - name: Tag the release in GitHub
+        env:
+          VERSION: ${{ needs.build.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          echo "Successfully tagged and pushed v$VERSION to GitHub."
