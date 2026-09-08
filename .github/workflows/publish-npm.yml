@@ -1,94 +1,136 @@
-name: MidManStudio.Qr — WASM npm publish
+name: Publish to npm
 
-# Manual only (Actions tab -> Run workflow) — requires typing "publish" in
-# the confirmation input.
-#
-# ── Before the very first run ───────────────────────────────────────────
-# For @midmanstudio/mid-qr:
-#   1. Trusted publishing is configured on npmjs.com under:
-#      Package Settings -> Trusted Publisher.
-#   2. Initial release (v1.0.0) must be published once manually from local:
-#      `npm login` -> `npm publish --access public` inside `npm/`.
-#   3. Trusted Publisher Config:
-#      - GitHub Actions
-#      - Owner: "MidManStudio"
-#      - Repo: "mid_qr_code_lib"
-#      - Workflow filename: "qr-npm-publish.yml"
-#   4. Subsequent releases authenticate via OIDC automatically.
+# ── OIDC trusted publishing ─────────────────────────────────────────────
+# This workflow runs manually. It reads the version from npm/package.json,
+# builds the Rust/WASM/TS code, publishes it to npm via OIDC Trusted 
+# Publishing, and then automatically pushes a matching Git tag to GitHub.
 
 on:
   workflow_dispatch:
-    inputs:
-      confirm:
-        description: 'Type "publish" to confirm. Bump version in npm/package.json first if this is a new release.'
-        required: true
-
-permissions:
-  contents: write
-  packages: write
-  id-token: write
-  actions: read
 
 jobs:
-
-  # ── 1. Confirm trigger ─────────────────────────────────────────────────
-  confirm-trigger:
+  build:
     runs-on: ubuntu-latest
-    steps:
-      - name: Confirm manual trigger
-        run: |
-          if [ "${{ github.event.inputs.confirm }}" != "publish" ]; then
-            echo "Confirmation text did not match 'publish' — aborting."
-            exit 1
-          fi
+    permissions:
+      contents: read
+    outputs:
+      version: ${{ steps.get_ver.outputs.version }}
 
-  # ── 2. Build, test, and publish ────────────────────────────────────────
-  build-test-and-publish:
-    runs-on: ubuntu-latest
-    needs: confirm-trigger
     steps:
       - uses: actions/checkout@v4
 
-      - uses: dtolnay/rust-toolchain@master
-        with:
-          toolchain: stable
-          targets: wasm32-unknown-unknown
+      - name: Extract version from package.json
+        id: get_ver
+        run: |
+          VERSION=$(node -p "require('./npm/package.json').version")
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Preparing build for version: $VERSION"
 
-      - uses: actions/cache@v3
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ubuntu-latest-cargo-wasm-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ubuntu-latest-cargo-wasm-
+          targets: wasm32-unknown-unknown
 
       - name: Install wasm-pack
         run: |
-          if ! command -v wasm-pack &> /dev/null; then
-            curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
-          fi
-          wasm-pack --version
+          curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
 
-      # ── Verify directory structure ─────────────────────────────────────
-      - name: Validate npm directory and package.json
+      - name: Cache Rust build artefacts
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: ". -> target"
+
+      - name: Run mid-qr-core tests
+        run: cargo test -p mid-qr-core --features generate,decode
+
+      # Absolute path ($GITHUB_WORKSPACE/npm/wasm) prevents wasm-pack from
+      # placing output in crates/npm/wasm
+      - name: Build WASM (release, web target)
         run: |
-          if [ ! -d "npm" ]; then
-            echo "::error::Directory 'npm' does not exist in repo root."
-            exit 1
-          fi
-          if [ ! -f "npm/package.json" ]; then
-            echo "::error::File 'npm/package.json' not found. Ensure package.json is committed in 'npm/'."
-            exit 1
-          fi
-          echo "Found npm/package.json successfully."
+          wasm-pack build crates/mid-qr-wasm \
+            --target web \
+            --release \
+            --out-dir "$GITHUB_WORKSPACE/npm/wasm" \
+            --out-name mid_qr_wasm
+
+      - name: Install binaryen (wasm-opt)
+        run: |
+          sudo apt-get install -y binaryen
+          wasm-opt --version
+
+      - name: Optimise WASM with full proposal support
+        run: |
+          wasm-opt npm/wasm/mid_qr_wasm_bg.wasm \
+            -Oz \
+            --enable-bulk-memory \
+            --enable-nontrapping-float-to-int \
+            --enable-sign-ext \
+            --enable-mutable-globals \
+            -o npm/wasm/mid_qr_wasm_bg.wasm
+          echo "wasm-opt done ($(du -sh npm/wasm/mid_qr_wasm_bg.wasm | cut -f1))"
+
+      - name: Verify WASM artefacts
+        run: |
+          for f in npm/wasm/mid_qr_wasm_bg.wasm npm/wasm/mid_qr_wasm.js npm/wasm/mid_qr_wasm.d.ts; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing: $f"
+              exit 1
+            fi
+            echo "OK $f ($(du -sh "$f" | cut -f1))"
+          done
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Install and build TS + worker
+        working-directory: npm
+        run: |
+          npm install
+          npm run build:ts
+          npm run build:worker
+
+      - name: Verify TS + worker build output
+        run: |
+          for f in npm/dist/index.js npm/dist/index.d.ts npm/worker/qr-scanner.min.js npm/worker/qr-scanner-worker.min.js; do
+            if [ ! -f "$f" ]; then
+              echo "::error::Missing: $f"
+              exit 1
+            fi
+            echo "OK $f"
+          done
+
+      - name: Upload npm package artefact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: |
+            npm/dist/
+            npm/wasm/
+            npm/worker/
+            npm/package.json
+            npm/README.md
+            LICENSE
+          retention-days: 1
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # Required to push the git tag back to the repo
+      id-token: write   # Required for OIDC trusted publishing
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
           registry-url: 'https://registry.npmjs.org'
 
       - name: Ensure npm supports OIDC trusted publishing
@@ -96,106 +138,31 @@ jobs:
           npm install -g npm@latest
           npm --version
 
-      - name: Install dependencies
-        run: npm install
-        working-directory: npm
-
-      # ── Build relying entirely on package.json scripts ─────────────────
-      # This runs `npm run build:wasm`, `build:ts`, and `build:worker`
-      # directly as defined in your package.json.
-      - name: Build package
-        run: npm run build
-        working-directory: npm
-
-      - name: Run test suite
-        run: npm test
-        working-directory: npm
-
-      - name: Upload build artifacts
-        if: always()
-        uses: actions/upload-artifact@v4
+      - name: Download npm package artefact
+        uses: actions/download-artifact@v4
         with:
-          name: mid-qr-npm-build-${{ github.run_number }}
-          path: |
-            npm/dist/
-            npm/wasm/
-            npm/worker/
-            npm/package.json
-          retention-days: 30
+          name: npm-package
+          path: npm-publish/
 
-      # ── Dry Run Verification ───────────────────────────────────────────
+      - name: Verify publish layout
+        run: |
+          echo "Publish contents:"
+          find npm-publish -type f | sort
+
       - name: Verify npm package (dry run)
+        working-directory: npm-publish
         run: npm publish --access public --dry-run
-        working-directory: npm
 
-      # ── Publish to npmjs.org (OIDC Trusted Publishing) ───────────────
       - name: Publish to npm
+        working-directory: npm-publish
         run: npm publish --access public
-        working-directory: npm
 
-      # ── Mirror to GitHub Packages ──────────────────────────────────────
-      - name: Compute GitHub Packages scope
-        id: gh_scope
-        run: |
-          set -euo pipefail
-          echo "scope=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/setup-node@v4
-        with:
-          registry-url: 'https://npm.pkg.github.com'
-          scope: '@${{ steps.gh_scope.outputs.scope }}'
-
-      - name: Publish mirror to GitHub Packages
-        id: gh_packages_publish
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          npm pkg set name="@${{ steps.gh_scope.outputs.scope }}/mid-qr"
-          npm publish
-        working-directory: npm
+      - name: Tag the release in GitHub
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Note GitHub Packages mirror outcome
-        if: always()
+          VERSION: ${{ needs.build.outputs.version }}
         run: |
-          if [ "${{ steps.gh_packages_publish.outcome }}" == "success" ]; then
-            echo "GitHub Packages mirror published successfully."
-          else
-            echo "::warning::GitHub Packages mirror publish failed — npmjs.org publish unaffected."
-          fi
-
-      # ── GitHub Release ──────────────────────────────────────────────────
-      - name: Read package version
-        id: version
-        run: |
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Published @midmanstudio/mid-qr v$VERSION"
-        working-directory: npm
-
-      - name: Create GitHub Release
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release create "npm-v${{ steps.version.outputs.version }}" \
-            --title "@midmanstudio/mid-qr v${{ steps.version.outputs.version }}" \
-            --notes "@midmanstudio/mid-qr v${{ steps.version.outputs.version }} published to npm." \
-            --target "${{ github.sha }}"
-
-  # ── 3. Summary ─────────────────────────────────────────────────────────
-  summary:
-    runs-on: ubuntu-latest
-    needs: [confirm-trigger, build-test-and-publish]
-    if: always()
-    steps:
-      - name: Print summary
-        run: |
-          echo "============================================="
-          echo "  @midmanstudio/mid-qr — Build Summary"
-          echo "============================================="
-          echo "Build:          #${{ github.run_number }}"
-          echo "Branch:         ${{ github.ref_name }}"
-          echo "Build/Publish:  ${{ needs.build-test-and-publish.result || 'skipped' }}"
-          echo ""
-          echo "npm Package: https://www.npmjs.com/package/@midmanstudio/mid-qr"
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+          echo "Successfully tagged and pushed v$VERSION to GitHub."
