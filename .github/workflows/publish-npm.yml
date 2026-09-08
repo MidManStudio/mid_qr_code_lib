@@ -100,7 +100,9 @@ jobs:
         run: npm install
         working-directory: npm
 
-      # ── Runs build:wasm, build:ts, and build:worker ─────────────────────
+      # ── Build relying entirely on package.json scripts ─────────────────
+      # This runs `npm run build:wasm`, `build:ts`, and `build:worker`
+      # directly as defined in your package.json.
       - name: Build package
         run: npm run build
         working-directory: npm
@@ -176,7 +178,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "v${{ steps.version.outputs.version }}" \
+          gh release create "npm-v${{ steps.version.outputs.version }}" \
             --title "@midmanstudio/mid-qr v${{ steps.version.outputs.version }}" \
             --notes "@midmanstudio/mid-qr v${{ steps.version.outputs.version }} published to npm." \
             --target "${{ github.sha }}"
