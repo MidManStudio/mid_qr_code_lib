@@ -35,8 +35,7 @@ tag before your module script — see the package's `worker/` directory.
 Every option (`moduleStyle`, `cornerSquareStyle`, `cornerDotStyle`,
 `eyeColor`, `frame`, `logo`, `gradient`), plus the scanner and decode
 APIs, is documented in the main repository:
-https://github.com/MidManStudio/mid_qr_code_lib/blob/main/docs/api.md
-
+https://github.com/MidManStudio/mid_qr_code_lib/blob/master/docs/api.md
 ## License
 
 MIT — see [LICENSE](https://github.com/MidManStudio/mid_qr_code_lib/blob/main/LICENSE).
