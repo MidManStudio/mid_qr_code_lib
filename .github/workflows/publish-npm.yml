@@ -103,17 +103,21 @@ jobs:
             echo "OK $f"
           done
 
+      - name: Stage package files
+        run: |
+          mkdir -p staging
+          cp -r npm/dist staging/
+          cp -r npm/wasm staging/
+          cp -r npm/worker staging/
+          cp npm/package.json staging/
+          cp npm/README.md staging/
+          cp LICENSE staging/
+
       - name: Upload npm package artefact
         uses: actions/upload-artifact@v4
         with:
           name: npm-package
-          path: |
-            npm/dist/
-            npm/wasm/
-            npm/worker/
-            npm/package.json
-            npm/README.md
-            LICENSE
+          path: staging/
           retention-days: 1
 
   publish:
