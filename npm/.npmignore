@@ -1,0 +1,30 @@
+# Source files (We only want the built artifacts)
+src/
+crates/
+*.ts
+!dist/**/*.d.ts
+
+# Configuration files
+tsconfig.json
+rollup.config.js
+vitest.config.ts
+.eslintrc*
+.prettierrc*
+
+# Tests
+test/
+tests/
+coverage/
+
+# Logs and local dependencies
+node_modules/
+npm-debug.log*
+yarn-error.log*
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Git and CI
+.git/
+.github/
+.gitignore
