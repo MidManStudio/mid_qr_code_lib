@@ -1,0 +1,166 @@
+/* ════════════════════════════════════════════════════════
+   Breakpoints
+   --controls-w  ↓ at 1100px
+   Single column at 900px
+   Mobile at 600px
+   Tiny at 380px
+════════════════════════════════════════════════════════ */
+
+/* ── 1100px — narrow desktop ──────────────────────────── */
+@media (max-width: 1100px) {
+  :root { --controls-w: 360px; }
+
+  .header-tagline { display: none; }
+}
+
+/* ── 900px — tablet: stack layout ────────────────────── */
+@media (max-width: 900px) {
+  :root {
+    --controls-w: 100%;
+    --gap: 16px;
+    --site-px: 16px;
+    --panel-px: 18px;
+  }
+
+  .workspace {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "controls"
+      "preview";
+  }
+
+  .panel--preview {
+    position: static;
+    top: auto;
+  }
+
+  .site-header { height: 56px; }
+  :root { --header-h: 56px; }
+
+  .logo__chip { display: none; }
+
+  /* Type grid drops from 4 cols to 3 on tablet */
+  .type-grid { grid-template-columns: repeat(3, 1fr); }
+
+  .tab-btn {
+    padding: 11px 4px 9px;
+    font-size: 9px;
+  }
+  .tab-btn__icon { width: 15px; height: 15px; }
+
+  .qr-stage { min-height: 280px; padding: var(--sp-8); }
+
+  .style-grid { grid-template-columns: repeat(3, 1fr); }
+  .frame-grid { grid-template-columns: repeat(4, 1fr); }
+}
+
+/* ── 600px — mobile ───────────────────────────────────── */
+@media (max-width: 600px) {
+  :root {
+    --panel-px: 14px;
+    --panel-py: 14px;
+    --site-px:  12px;
+    --gap: 12px;
+  }
+
+  .site-main { padding-top: var(--sp-5); padding-bottom: var(--sp-16); }
+
+  .header-link span:not(.header-link__icon) { display: none; }
+  .header-link { padding: 6px 10px; }
+
+  .tab-btn {
+    font-size: 0;
+    padding: 13px 4px;
+    flex: none;
+    width: 20%;
+  }
+  .tab-btn__icon { width: 18px; height: 18px; }
+
+  .tab-btn.is-active {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+
+  /* Type grid stays 3 cols on mobile until 380px */
+  .type-grid { grid-template-columns: repeat(3, 1fr); gap: var(--sp-1); }
+  .type-btn { padding: 9px 4px; font-size: 10px; }
+  .type-btn__icon { width: 14px; height: 14px; }
+
+  .pill-group { gap: var(--sp-1); }
+  .pill { padding: 4px 9px; }
+
+  .color-pair { grid-template-columns: 1fr; gap: var(--sp-2); }
+
+  .style-grid { grid-template-columns: repeat(2, 1fr); }
+  .style-grid--sm { grid-template-columns: repeat(2, 1fr); }
+  .frame-grid { grid-template-columns: repeat(3, 1fr); }
+  .style-card { padding: 10px 6px 8px; }
+  .style-card__preview { width: 40px; height: 40px; }
+
+  .preview-header {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+    padding: var(--sp-3) var(--panel-px);
+  }
+  .preview-actions { width: 100%; justify-content: flex-end; }
+
+  .qr-stage {
+    min-height: 240px;
+    padding: var(--sp-6);
+  }
+
+  .btn--generate { padding: 13px var(--sp-4); font-size: var(--text-sm); }
+
+  .field-input--hex { display: none; }
+}
+
+/* ── 380px — tiny ─────────────────────────────────────── */
+@media (max-width: 380px) {
+  :root { --site-px: 10px; }
+
+  .logo__text { font-size: var(--text-base); }
+
+  /* Type grid collapses to 2 cols on very small screens */
+  .type-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .frame-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .style-grid { grid-template-columns: repeat(2, 1fr); }
+
+  .tab-btn {
+    width: 25%;
+    font-size: 0;
+  }
+
+  .qr-stage { min-height: 200px; }
+}
+
+/* ── Prefer reduced motion ────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── High contrast mode ───────────────────────────────── */
+@media (forced-colors: active) {
+  .panel { border: 1px solid ButtonText; }
+  .tab-btn.is-active { forced-color-adjust: none; }
+  .btn--generate { forced-color-adjust: none; }
+}
+
+/* ── Print ────────────────────────────────────────────── */
+@media print {
+  .site-header,
+  .panel--controls,
+  .preview-header,
+  .status-bar { display: none; }
+
+  .workspace { display: block; }
+  .panel--preview { border: none; box-shadow: none; }
+  .qr-stage { background: white; border: none; }
+}
